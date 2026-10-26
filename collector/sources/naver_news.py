@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 
 from ..env import get_secret, has_naver_keys
 from ..http import SourceError
@@ -47,6 +48,15 @@ def _add_calls(ctx: Context, n: int) -> None:
     ctx.state["naver_calls"] = {"date": ctx.now.date().isoformat(), "count": _calls_today(ctx) + n}
 
 
+def per_keyword_now(ctx: Context) -> tuple[int, bool]:
+    """아침 첫 실행(06시대)이거나 직전 성공 수집에서 morning_gap_hours 넘게 지났으면(밤사이·실행 누락) 많이 받음."""
+    s = ctx.cfg.sources["naver_news"]
+    last = (ctx.state.get("last_success") or {}).get(ID)
+    gap = (ctx.now - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 999
+    morning = ctx.now.hour < 7 or gap >= s.get("morning_gap_hours", 5)
+    return (min(100, s.get("per_keyword_morning", 100)) if morning else s["per_keyword"]), morning
+
+
 def collect(ctx: Context) -> SourceResult:
     s = ctx.cfg.sources["naver_news"]
     if not s.get("enabled"):
@@ -63,13 +73,16 @@ def collect(ctx: Context) -> SourceResult:
         result.notes.append(f"오늘 남은 호출 {room}회 → 검색어 {len(queries)}개 중 {room}개만 검색")
         queries = queries[:room]
 
+    per_keyword, morning = per_keyword_now(ctx)
+    if morning:
+        result.notes.append(f"아침 첫 실행 — 밤사이 기사까지 키워드당 {per_keyword}건")
     headers = {"X-Naver-Client-Id": get_secret("NAVER_CLIENT_ID"), "X-Naver-Client-Secret": get_secret("NAVER_CLIENT_SECRET")}
     fetched_at = ctx.now.isoformat()
     failed = []
     try:
         for field, query in queries:
             try:
-                r = ctx.get(URL, params={"query": query, "display": s["per_keyword"], "sort": "date"}, headers=headers)
+                r = ctx.get(URL, params={"query": query, "display": per_keyword, "sort": "date"}, headers=headers)
             except SourceError as e:
                 result.calls += 1
                 if e.status in (401, 403):

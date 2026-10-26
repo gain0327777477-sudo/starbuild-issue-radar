@@ -18,6 +18,7 @@ from .config import ConfigError, load_config
 from .env import ROOT_ENV, has_naver_keys, load_dotenv, mask
 from .http import SourceError
 from .models import Article, now_kst
+from .schedule import next_run, scheduled_slot
 from .sources import blog_rss, google_news, korea_briefing, naver_news
 from .sources.base import Context, SkipSource
 from .store import DATA_DIR, load_json, merge_articles, save_json
@@ -52,17 +53,25 @@ def run_source(module, ctx: Context) -> tuple[dict, object]:
     return report, result
 
 
-def run_info(started) -> dict:
+def run_info(started, cfg=None) -> dict:
     """어떻게 실행됐는지 — 반영 지연(예약 시각 → 화면) 측정용.
-    예약 실행(schedule)이면 예약 시각 = 시작 시각을 30분 단위로 내린 값 (cron '*/30')."""
+    예약 실행(schedule)이면 예약 시각 = 일정표(schedule_kst_hours)에서 시작 시각 직전의 정각."""
     event = os.environ.get("RADAR_RUN_EVENT", "local")
     info = {"event": event, "run_id": os.environ.get("RADAR_RUN_ID", ""), "started_at": started.isoformat(),
             "finished_at": now_kst().isoformat()}
     if event == "schedule":
-        slot = started.replace(minute=started.minute - started.minute % 30, second=0)
+        hours = cfg.sources["schedule_kst_hours"] if cfg else list(range(24))
+        slot = scheduled_slot(started, hours)
         info["scheduled_slot"] = slot.isoformat()
         info["start_delay_min"] = round((started - slot).total_seconds() / 60, 1)
     return info
+
+
+def schedule_info(cfg, now) -> dict:
+    """화면이 쓰는 일정 정보: 다음 수집, 야간 휴식 시간, 경고 기준."""
+    s = cfg.sources
+    return {"kst_hours": s["schedule_kst_hours"], "quiet_hours": s["quiet_hours"], "stale_hours": s["stale_hours"],
+            "next_run": next_run(now, s["schedule_kst_hours"]).isoformat()}
 
 
 def main() -> int:
@@ -115,7 +124,8 @@ def main() -> int:
     failed = [r for r in reports if r["status"] in ("failed", "partial")]
     save_json(DATA_DIR / "status.json", {
         "collected_at": now.isoformat(),
-        "run": run_info(now),
+        "run": run_info(now, cfg),
+        "schedule": schedule_info(cfg, now),
         "has_naver_keys": has_naver_keys(),
         "new_articles": len(new_articles),
         "total_articles": len(articles),

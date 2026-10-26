@@ -14,9 +14,13 @@
 </head>
 <body>
   <header class="appbar">
-    <h1 class="appbar__title">이슈레이더</h1>
+    <div class="appbar__left">
+      <h1 class="appbar__title">이슈레이더</h1>
+      <div class="appbar__status" id="status-line">불러오는 중…</div>
+    </div>
     <div class="appbar__actions">
-      <button type="button" class="iconbtn" id="btn-saved" aria-label="저장한 소재">저장함 <span id="saved-count" class="count">0</span></button>
+      <button type="button" class="iconbtn" id="btn-refresh" aria-label="새로고침">↻</button>
+      <button type="button" class="iconbtn" id="btn-saved" aria-label="저장한 소재">저장 <span id="saved-count" class="count">0</span></button>
       <button type="button" class="iconbtn" id="btn-settings" aria-label="설정">설정</button>
     </div>
   </header>
@@ -24,14 +28,9 @@
   <div id="banners" aria-live="polite"></div>
 
   <div class="toolbar" id="toolbar">
-    <input id="search" type="search" placeholder="검색 (키워드·지역·제목)" autocomplete="off" aria-label="검색">
-    <div class="toolbar__row">
-      <select id="region" aria-label="지역으로 거르기"><option value="">전체 지역</option></select>
-      <div class="seg" role="group" aria-label="정렬">
-        <button type="button" data-sort="score" class="on">점수순</button>
-        <button type="button" data-sort="recent">최신순</button>
-      </div>
-    </div>
+    <input id="search" type="search" placeholder="검색" autocomplete="off" aria-label="검색 (키워드·지역·제목)">
+    <select id="region" aria-label="지역으로 거르기"><option value="">전체 지역</option></select>
+    <button type="button" class="sortbtn" id="sort" aria-label="정렬 바꾸기">점수순</button>
   </div>
 
   <main id="main" tabindex="-1"><p class="empty">불러오는 중…</p></main>

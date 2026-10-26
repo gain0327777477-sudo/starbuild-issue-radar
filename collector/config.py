@@ -13,6 +13,8 @@ from pathlib import Path
 
 import yaml
 
+from .schedule import cron_kst_hours, kst_to_utc_hours, workflow_cron
+
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = ROOT / "config"
 
@@ -407,8 +409,20 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
 
     # sources.yaml
     sources = raw["sources"]
-    if not isinstance(sources.get("collect_every_minutes"), int) or sources["collect_every_minutes"] <= 0:
-        problems.append("sources.yaml: collect_every_minutes 는 1 이상의 숫자여야 합니다")
+    hours = sources.get("schedule_kst_hours")
+    if not isinstance(hours, list) or not hours or not all(isinstance(h, int) and 0 <= h <= 23 for h in hours)             or len(set(hours)) != len(hours):
+        problems.append("sources.yaml: schedule_kst_hours 는 0~23 사이 정각 목록이어야 합니다 (예: [6, 8, 10])")
+    else:
+        sources["schedule_kst_hours"] = sorted(hours)
+        cron = workflow_cron()
+        if cron is not None and cron_kst_hours(cron) != sorted(hours):
+            warnings.append(f"수집 일정 불일치: sources.yaml 은 한국 {sorted(hours)}시인데 워크플로 cron '{cron}' 은 한국 "
+                            f"{cron_kst_hours(cron)}시입니다 → cron 을 '0 {','.join(map(str, kst_to_utc_hours(hours)))} * * *' 로 바꾸세요")
+    q = sources.get("quiet_hours") or {}
+    if not all(isinstance(q.get(k), int) and 0 <= q[k] <= 23 for k in ("start", "end")):
+        problems.append("sources.yaml: quiet_hours 는 {start: 22, end: 7} 처럼 적어야 합니다")
+    if not isinstance(sources.get("stale_hours"), (int, float)) or sources["stale_hours"] <= 0:
+        problems.append("sources.yaml: stale_hours 는 0보다 큰 숫자여야 합니다")
     dl = sources.get("datalab") or {}
     if dl.get("groups_per_call", 5) > 5:
         problems.append("sources.yaml: datalab.groups_per_call 은 최대 5입니다 (네이버 규칙)")
@@ -417,8 +431,6 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
     if (sources.get("naver_news") or {}).get("daily_call_limit", 0) > 25000:
         problems.append("sources.yaml: naver_news.daily_call_limit 은 네이버 한도 25,000 이하로 두세요")
     gn = sources.get("google_news") or {}
-    if (gn.get("interval_hours") or 0) * 60 < sources.get("collect_every_minutes", 30):
-        problems.append("sources.yaml: google_news.interval_hours 가 수집 간격보다 짧습니다")
     for s in (gn.get("local_gov") or {}).get("sites") or []:
         if not isinstance(s, dict) or not s.get("site") or not s.get("name"):
             problems.append("sources.yaml: google_news.local_gov.sites 의 각 줄에는 name 과 site 가 있어야 합니다")

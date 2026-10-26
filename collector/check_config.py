@@ -20,29 +20,33 @@ def google_general_queries(cfg) -> int:
     return per_field + local
 
 
+def datalab_refreshes(hours: list[int], interval_hours: float) -> int:
+    """하루 일정대로 돌 때 정기 조회가 몇 번 되는지 (직전 정기 조회 후 interval 이 지났을 때만)."""
+    times = [h for h in sorted(hours)] + [h + 24 for h in sorted(hours)]       # 이틀 치로 돌려 둘째 날만 셈
+    last, count = None, 0
+    for i, t in enumerate(times):
+        if last is None or t - last >= interval_hours:
+            last = t
+            if i >= len(hours):
+                count += 1
+    return count
+
+
 def estimate_calls(cfg) -> dict:
     s = cfg.sources
-    every = s["collect_every_minutes"]
-    runs_per_day = (24 * 60) // every
+    hours = s["schedule_kst_hours"]
+    runs_per_day = len(hours)
 
     naver_base = len(cfg.all_keywords()) if s["naver_news"]["enabled"] else 0
     naver_combo = len(cfg.combo_queries()) if s["naver_news"]["enabled"] else 0
-    naver_per_run = naver_base + naver_combo
+    naver_per_run = naver_base + naver_combo           # 아침 첫 실행은 기사 수만 늘고 호출 수는 같음
 
     briefing_per_run = len(s["korea_briefing"]["departments"]) if s["korea_briefing"]["enabled"] else 0
-    gn = s["google_news"]
-    if gn["enabled"]:
-        general_cycle = google_general_queries(cfg)
-        cycles_per_day = 24 / gn["interval_hours"]
-        runs_per_cycle = max(1, round(gn["interval_hours"] * 60 / every))
-        general_per_day = math.ceil(general_cycle * cycles_per_day)
-        general_per_run = math.ceil(general_cycle / runs_per_cycle)
-    else:
-        general_cycle = general_per_day = general_per_run = runs_per_cycle = 0
+    general_per_run = google_general_queries(cfg) if s["google_news"]["enabled"] else 0
 
     dl = s["datalab"]
     if dl["enabled"]:
-        refreshes = math.ceil(24 / dl["interval_hours"])
+        refreshes = datalab_refreshes(hours, dl["interval_hours"])
         per_refresh = math.ceil(dl["top_issues"] / dl["groups_per_call"])
         extra_worst = (runs_per_day - refreshes) * dl["max_new_calls_per_run"]
         datalab = {
@@ -57,6 +61,7 @@ def estimate_calls(cfg) -> dict:
         datalab = None
 
     return {
+        "hours": hours,
         "runs_per_day": runs_per_day,
         "naver_base": naver_base,
         "naver_combo": naver_combo,
@@ -65,11 +70,11 @@ def estimate_calls(cfg) -> dict:
         "naver_cap": s["naver_news"]["daily_call_limit"],
         "briefing_per_run": briefing_per_run,
         "briefing_per_day": briefing_per_run * runs_per_day,
-        "general_cycle": general_cycle,
         "general_per_run": general_per_run,
-        "general_per_day": general_per_day,
-        "runs_per_cycle": runs_per_cycle,
-        "google_per_day": briefing_per_run * runs_per_day + general_per_day,
+        "general_per_day": general_per_run * runs_per_day,
+        "google_per_run": briefing_per_run + general_per_run,
+        "google_per_day": (briefing_per_run + general_per_run) * runs_per_day,
+        "google_seconds": round((briefing_per_run + general_per_run) * s["google_news"].get("pause_seconds", 1.5)),
         "datalab": datalab,
     }
 
@@ -93,14 +98,14 @@ def main() -> int:
     print(f"  블로그 RSS: {cfg.blog_rss_url}")
 
     e = estimate_calls(cfg)
-    print(f"\n[하루 예상 호출 수] 수집 {e['runs_per_day']}회/일 ({cfg.sources['collect_every_minutes']}분 간격) 기준")
+    print(f"\n[하루 예상 호출 수] 하루 {e['runs_per_day']}회 (한국 시간 {', '.join(f'{h:02d}' for h in e['hours'])}시 정각) 기준")
     print(f"  네이버 뉴스 검색 : 1회 {e['naver_per_run']}건(키워드 {e['naver_base']} + 대기업 조합 {e['naver_combo']}) "
           f"× {e['runs_per_day']} = {e['naver_per_day']:,}건/일 "
           f"(스스로 건 상한 {e['naver_cap']:,} · 네이버 한도 25,000 → {'한도 이내' if e['naver_per_day'] <= 25000 else '⚠ 한도 초과'})")
-    print(f"  구글뉴스 RSS     : 정책브리핑 {e['briefing_per_run']}건 × {e['runs_per_day']} = {e['briefing_per_day']:,}건/일 (30분마다)")
-    print(f"                     일반 검색 {e['general_cycle']}건을 {cfg.sources['google_news']['interval_hours']}시간에 한 바퀴"
-          f"(30분마다 약 {e['general_per_run']}건씩 나눠서) = {e['general_per_day']:,}건/일")
-    print(f"                     합계 {e['google_per_day']:,}건/일 (공식 한도 없음)")
+    print(f"                     아침 첫 실행은 키워드당 기사 {cfg.sources['naver_news'].get('per_keyword_morning', 100)}건"
+          f"(평소 {cfg.sources['naver_news']['per_keyword']}건) — 호출 수는 같음")
+    print(f"  구글뉴스 RSS     : 1회 {e['google_per_run']}건(정책브리핑 {e['briefing_per_run']} + 일반·지자체 {e['general_per_run']}, 매번 전체) "
+          f"× {e['runs_per_day']} = {e['google_per_day']:,}건/일 (공식 한도 없음 · 1회 약 {e['google_seconds']}초)")
     d = e["datalab"]
     if d:
         print(f"  데이터랩 트렌드  : 정기 {d['refreshes']}회 × {d['per_refresh']}건 = {d['base']}건/일, "

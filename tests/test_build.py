@@ -27,20 +27,34 @@ def test_build_site_injects_version_and_skips_private_files(tmp_path, monkeypatc
 
 
 def test_run_info_for_scheduled_run(monkeypatch):
+    from collector.config import load_config
+    cfg = load_config(scan_root=None)
     monkeypatch.setenv("RADAR_RUN_EVENT", "schedule")
     monkeypatch.setenv("RADAR_RUN_ID", "123")
-    info = collector_main.run_info(datetime(2026, 10, 27, 9, 47, 30, tzinfo=KST))
-    assert info["scheduled_slot"] == "2026-10-27T09:30:00+09:00" and info["start_delay_min"] == 17.5
+    info = collector_main.run_info(datetime(2026, 10, 27, 10, 17, 30, tzinfo=KST), cfg)
+    assert info["scheduled_slot"] == "2026-10-27T10:00:00+09:00" and info["start_delay_min"] == 17.5
+    late = collector_main.run_info(datetime(2026, 10, 27, 6, 40, tzinfo=KST), cfg)          # 06시 예약이 40분 늦게
+    assert late["scheduled_slot"] == "2026-10-27T06:00:00+09:00" and late["start_delay_min"] == 40
     monkeypatch.setenv("RADAR_RUN_EVENT", "workflow_dispatch")
-    assert "scheduled_slot" not in collector_main.run_info(datetime(2026, 10, 27, 9, 47, tzinfo=KST))
+    assert "scheduled_slot" not in collector_main.run_info(datetime(2026, 10, 27, 9, 47, tzinfo=KST), cfg)
+
+
+def test_schedule_info_next_run():
+    from collector.config import load_config
+    cfg = load_config(scan_root=None)
+    info = collector_main.schedule_info(cfg, datetime(2026, 10, 27, 22, 10, tzinfo=KST))
+    assert info["next_run"] == "2026-10-28T06:00:00+09:00" and info["quiet_hours"] == {"start": 22, "end": 7}
 
 
 def test_workflow_has_required_pieces():
     w = yaml.safe_load(open(build_site.ROOT / ".github" / "workflows" / "collect.yml", encoding="utf-8"))
     on = w[True]                                     # YAML 의 'on' 은 True 로 읽힘
-    assert on["schedule"][0]["cron"] == "*/30 * * * *" and "workflow_dispatch" in on
+    assert on["schedule"][0]["cron"] == "0 1,3,5,7,9,11,13,21,23 * * *" and "workflow_dispatch" in on
     assert w["permissions"]["actions"] == "write" and w["permissions"]["pages"] == "write"
     steps = {s["name"]: s for s in w["jobs"]["run"]["steps"]}
     assert "secrets.NAVER_CLIENT_SECRET" in steps["수집·점수·소재 패킷"]["env"]["NAVER_CLIENT_SECRET"]
     assert "gh workflow enable" in steps["60일 자동 중지 대비 (워크플로 켜기)"]["run"]
     assert "--force" in steps["수집 결과를 data 브랜치에 덮어쓰기"]["run"]
+    used = [s["uses"] for s in w["jobs"]["run"]["steps"] if "uses" in s]       # Node 24 판
+    assert used == ["actions/checkout@v7", "actions/setup-python@v7", "actions/configure-pages@v6",
+                    "actions/upload-pages-artifact@v5", "actions/deploy-pages@v5"]

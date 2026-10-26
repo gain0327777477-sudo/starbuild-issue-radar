@@ -155,15 +155,43 @@
   }
 
   // ── 위쪽 알림(경고·상태) ─────────────────────
+  // 일정(한국 시간): status.json 의 schedule — 기본값은 06~22시 2시간마다, 22~07시 야간 휴식, 낮 3시간 경고
+  const DEFAULT_SCHEDULE = { kst_hours: [6, 8, 10, 12, 14, 16, 18, 20, 22], quiet_hours: { start: 22, end: 7 }, stale_hours: 3 };
+  const kstHour = (d = new Date()) => (d.getUTCHours() + 9) % 24;
+  function schedule() { return Object.assign({}, DEFAULT_SCHEDULE, (state.status && state.status.schedule) || {}); }
+  function isQuiet(sc) {
+    const h = kstHour(), q = sc.quiet_hours;
+    return q.start > q.end ? (h >= q.start || h < q.end) : (h >= q.start && h < q.end);
+  }
+  function nextHour(sc) {
+    const h = kstHour(), hours = [...sc.kst_hours].sort((a, b) => a - b);
+    return hours.find((x) => x > h) ?? hours[0];
+  }
+  const two = (n) => String(n).padStart(2, "0");
+
   function renderBanners() {
     const box = $("#banners");
+    const line = $("#status-line");
     box.replaceChildren();
     const st = state.status;
+    const sc = schedule();
+    const quiet = isQuiet(sc);
+
+    // 제목 줄 안의 한 줄 상태: "13분 전 수집 · 다음 10시" / 밤: "… · 야간 휴식 중 · 06시 재개"
+    if (st && st.collected_at) {
+      const failed = (st.sources || []).filter((s) => s.status === "failed" || s.status === "partial");
+      const parts = [`${ago(st.collected_at)} 수집`];
+      parts.push(quiet ? `🌙 야간 휴식 중 · ${two(Math.min(...sc.kst_hours))}시 재개` : `다음 ${two(nextHour(sc))}시`);
+      line.replaceChildren(parts.join(" · "), failed.length ? h("span", { class: "warn-dot", text: ` · 실패 ${failed.length}` }) : "");
+      line.title = `마지막 수집 ${clock(st.collected_at)}`;
+    } else {
+      line.textContent = state.errors.length ? "데이터를 불러오지 못함" : "불러오는 중…";
+    }
 
     if (!window.isSecureContext) {
       box.append(h("div", { class: "banner banner--info" },
         h("strong", { text: "미리 보기(HTTP) 모드" }),
-        "홈 화면 설치·오프라인 저장·공유 버튼은 6단계에서 HTTPS 주소(GitHub Pages)로 올린 뒤 동작합니다. 복사 버튼은 지금도 됩니다."));
+        "홈 화면 설치·오프라인 저장·공유 버튼은 HTTPS 주소(GitHub Pages)에서만 동작합니다. 복사는 됩니다."));
     }
     if (state.offline) {
       box.append(h("div", { class: "banner banner--warn" },
@@ -178,23 +206,18 @@
     }
     if (st && st.collected_at) {
       const hours = (Date.now() - Date.parse(st.collected_at)) / 3600000;
-      if (hours > STALE_HOURS) {
+      // 낮(06~22시)에만 경고. 밤(22~07시)은 원래 쉬는 시간이라 제목 줄의 '야간 휴식 중' 안내만
+      if (hours > sc.stale_hours && !quiet) {
         box.append(h("div", { class: "banner banner--danger", role: "alert" },
           h("strong", { text: "⚠ 수집이 멈췄습니다" }),
-          `마지막 수집 ${ago(st.collected_at)} (${clock(st.collected_at)}). GitHub 자동 수집이 꺼졌을 수 있습니다. README의 '수집이 멈췄을 때'를 보고 다시 켜 주세요.`));
+          `마지막 수집 ${ago(st.collected_at)} (${clock(st.collected_at)}). 낮에는 2시간마다 수집합니다. ` +
+          "GitHub 자동 수집이 꺼졌을 수 있으니 README의 '수집이 멈췄을 때'를 보고 다시 켜 주세요."));
       }
-      const line = h("div", { class: "status-line" },
-        h("span", { text: `마지막 수집 ${ago(st.collected_at)} · ${clock(st.collected_at)}` }));
-      for (const s of st.sources || []) {
-        if (s.status === "failed" || s.status === "partial") {
-          line.append(h("button", { type: "button", class: "chip-fail", onclick: () => openStatus(),
-            text: `${s.status === "failed" ? "실패" : "일부 실패"}: ${s.name}` }));
-        }
+      const failed = (st.sources || []).filter((s) => s.status === "failed" || s.status === "partial");
+      if (failed.length) {
+        box.append(h("div", { class: "chips" }, failed.map((s) => h("button", { type: "button", class: "chip-fail",
+          onclick: () => openStatus(), text: `${s.status === "failed" ? "실패" : "일부 실패"}: ${s.name}` }))));
       }
-      if (st.has_naver_keys === false) line.append(h("span", { text: "네이버 키 없음(RSS만 수집)" }));
-      line.append(h("button", { type: "button", class: "chip-fail", style: "background:var(--surface-2);color:var(--text)",
-        onclick: () => { toast("새로 불러오는 중…"); loadAll(); }, text: "새로고침" }));
-      box.append(line);
     }
   }
 
@@ -512,10 +535,15 @@
     if (!st) return [h("p", { class: "note", text: "수집 상태를 불러오지 못했습니다." })];
     const label = { ok: "정상", partial: "일부 실패", skipped: "건너뜀", failed: "실패" };
     const run = st.run || {};
+    const sc = schedule();
     return [
       h("p", { text: `마지막 수집 ${clock(st.collected_at)} (${ago(st.collected_at)})` }),
+      h("p", { class: "note", text: `수집 일정: 한국 시간 ${sc.kst_hours.map(two).join("·")}시 정각 (하루 ${sc.kst_hours.length}회). ` +
+        `${two(sc.quiet_hours.start)}시~${two(sc.quiet_hours.end)}시는 야간 휴식. 낮에 ${sc.stale_hours}시간 넘게 수집이 없으면 경고.` }),
+      st.has_naver_keys === false ? h("p", { class: "note", text: "네이버 키 없음 — 구글 뉴스·정책브리핑·블로그만 수집 중 (README 6-8·6-9)" }) : null,
       run.scheduled_slot ? h("p", { class: "note",
-        text: `예약 ${clock(run.scheduled_slot)} → 실제 시작 ${clock(run.started_at)} (${run.start_delay_min}분 늦게) → 수집 끝 ${clock(run.finished_at)}` }) : null,
+        text: `반영 지연: 예약 ${clock(run.scheduled_slot)} → 실제 시작 ${clock(run.started_at)} (${run.start_delay_min}분 늦게) → 수집 끝 ${clock(run.finished_at)}` +
+          (state.version ? ` → 화면 배포 ${clock(state.version.built_at)}` : "") }) : null,
       state.version ? h("p", { class: "note", text: `화면 배포 ${clock(state.version.built_at)} · 버전 ${state.version.version}` }) : null,
       h("ul", {}, (st.sources || []).map((s) => h("li", {},
         h("b", { text: `${s.name}: ${label[s.status] || s.status}` }),
@@ -565,11 +593,13 @@
       typing = setTimeout(() => { state.q = e.target.value.trim(); state.shown = PAGE; render(); }, 200);
     });
     $("#region").addEventListener("change", (e) => { state.region = e.target.value; state.shown = PAGE; render(); });
-    document.querySelectorAll(".seg [data-sort]").forEach((b) => b.addEventListener("click", () => {
-      state.sort = b.dataset.sort;
-      document.querySelectorAll(".seg [data-sort]").forEach((x) => x.classList.toggle("on", x === b));
+    $("#sort").addEventListener("click", () => {
+      state.sort = state.sort === "score" ? "recent" : "score";
+      $("#sort").textContent = state.sort === "score" ? "점수순" : "최신순";
+      state.shown = PAGE;
       render();
-    }));
+    });
+    $("#btn-refresh").addEventListener("click", () => { toast("새로 불러오는 중…"); loadAll(); });
     $("#btn-saved").addEventListener("click", openSaved);
     $("#btn-settings").addEventListener("click", openSettings);
     $("#sheet-close").addEventListener("click", () => closeSheet(false));

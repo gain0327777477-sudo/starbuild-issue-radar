@@ -1,4 +1,4 @@
-"""반영 지연 재기 — 예약 시각(정각·30분) → 실행 시작 → 수집 끝 → 화면(Pages) 반영.
+"""반영 지연 재기 — 예약 시각(한국 06~22시 2시간마다 정각) → 실행 시작 → 수집 끝 → 화면(Pages) 반영.
 
 실행:  python tools/measure_delay.py --repo 아이디/저장소이름 --site https://아이디.github.io/저장소이름/
   · GitHub 공개 API(로그인 불필요)로 최근 '예약 실행(schedule)' 기록을 읽고
@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -20,7 +21,11 @@ def parse(ts: str | None) -> datetime | None:
 
 
 def slot_of(t: datetime) -> datetime:
-    return t.replace(minute=t.minute - t.minute % 30, second=0, microsecond=0)
+    """일정표(config/sources.yaml schedule_kst_hours)에서 t 직전의 예약 정각."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from collector.config import load_config
+    from collector.schedule import scheduled_slot
+    return scheduled_slot(t, load_config(scan_root=None).sources["schedule_kst_hours"])
 
 
 def minutes(a: datetime | None, b: datetime | None) -> str:
@@ -45,7 +50,7 @@ def main() -> int:
         return 1
     runs = [x for x in r.json().get("workflow_runs", []) if x["event"] == "schedule"][: args.count]
     if not runs:
-        print("아직 예약 실행(schedule) 기록이 없습니다. 첫 예약 실행은 업로드 후 30분~1시간 안에 생깁니다.")
+        print("아직 예약 실행(schedule) 기록이 없습니다. 예약은 한국 06~22시 짝수 정각(2시간마다)입니다.")
 
     print("예약 시각 → 대기열 → 시작 → 끝(수집+배포)                      결과")
     print("-" * 78)

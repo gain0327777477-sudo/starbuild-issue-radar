@@ -143,7 +143,7 @@ def test_call_estimates_stay_under_limits():
     e = estimate_calls(load_config())
     assert e["naver_per_day"] <= 25000
     assert e["datalab"]["worst"] <= 1000
-    assert e["briefing_per_day"] == len(load_config().sources["korea_briefing"]["departments"]) * 48
+    assert e["briefing_per_day"] == len(load_config().sources["korea_briefing"]["departments"]) * 9   # 하루 9회
 
 
 def test_dotenv_does_not_override_and_mask(tmp_path, monkeypatch):

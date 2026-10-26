@@ -1,5 +1,5 @@
 """3. Google News RSS 일반 검색 + 지자체 보도자료 (보조 소스).
-막힐 위험을 줄이려고 전체 검색어를 4묶음으로 나눠 30분마다 한 묶음씩 → 같은 검색어는 2시간에 한 번."""
+실행이 2시간 간격(하루 9회)이라 매 실행마다 전체 검색어를 한 바퀴 다 돈다. 검색 사이 1.5초, 막히면 1시간 쉼."""
 from __future__ import annotations
 
 from ..http import SourceError
@@ -34,22 +34,13 @@ def sido_of(cfg, name: str) -> str:
     return ""
 
 
-def this_round(cfg, state: dict) -> tuple[list[dict], int, int]:
-    """이번 회차에 할 검색어 묶음. (검색어들, 몇 번째 묶음, 전체 묶음 수)"""
-    gn = cfg.sources["google_news"]
-    rounds = max(1, round(gn["interval_hours"] * 60 / cfg.sources["collect_every_minutes"]))
-    idx = state.get("google_round", 0) % rounds
-    return build_queries(cfg)[idx::rounds], idx, rounds
-
-
 def collect(ctx: Context) -> SourceResult:
     if not ctx.cfg.sources["google_news"].get("enabled"):
         raise SkipSource("설정에서 꺼짐")
     google_rss.check_not_blocked(ctx)
-    queries, idx, rounds = this_round(ctx.cfg, ctx.state)
-    ctx.state["google_round"] = idx + 1
+    queries = build_queries(ctx.cfg)
+    ctx.state.pop("google_round", None)          # 예전(30분 순환) 기록 정리
     result = SourceResult()
-    result.notes.append(f"검색어 {rounds}묶음 중 {idx + 1}번째 묶음 ({len(queries)}건)")
     failed = []
     for q in queries:
         try:

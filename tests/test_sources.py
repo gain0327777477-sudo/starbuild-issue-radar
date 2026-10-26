@@ -85,15 +85,31 @@ def test_or_query_quotes_phrases():
     assert google_rss.or_query(["미국 증시", "나스닥"]) == '("미국 증시" OR 나스닥)'
 
 
-def test_google_general_rotates_through_all_queries(cfg):
-    state, seen = {}, []
-    for _ in range(4):
-        qs, idx, rounds = google_news.this_round(cfg, state)
-        state["google_round"] = idx + 1
-        seen += [q["q"] for q in qs]
-    assert rounds == 4
-    assert sorted(seen) == sorted(q["q"] for q in google_news.build_queries(cfg))   # 4회차(2시간)에 전부 한 번씩
-    assert google_news.this_round(cfg, state)[1] == 0                              # 5회차는 처음부터
+def test_google_runs_all_queries_every_run(cfg):
+    """2시간 간격 실행이라 순환 없이 매번 전체 검색어를 한 바퀴."""
+    sent = []
+    state = {"google_round": 3}                                                  # 예전 순환 기록이 있어도
+    res = google_news.collect(Context(cfg, state, NOW, get=lambda url, params=None, **k: sent.append(params["q"]) or FakeResp(GOOGLE_XML)))
+    assert sorted(sent) == sorted(q["q"] for q in google_news.build_queries(cfg))
+    assert "google_round" not in state and res.calls == len(sent)
+
+
+def test_naver_morning_run_fetches_more(cfg, keys):
+    cfg.company_combos = {}
+    cfg.fields = {k: v for k, v in cfg.fields.items() if k == "rate"}
+    displays = []
+    get = lambda url, params=None, **k: displays.append(params["display"]) or FakeResp(data={"items": []})
+    morning = datetime(2026, 10, 27, 6, 3, tzinfo=KST)
+    res = naver_news.collect(Context(cfg, {"last_success": {"naver_news": "2026-10-26T22:04:00+09:00"}}, morning, get=get))
+    assert set(displays) == {100} and "아침 첫 실행" in res.notes[0]
+    displays.clear()
+    day = datetime(2026, 10, 27, 10, 5, tzinfo=KST)
+    naver_news.collect(Context(cfg, {"last_success": {"naver_news": "2026-10-27T08:04:00+09:00"}}, day, get=get))
+    assert set(displays) == {20}
+    displays.clear()                                                              # 낮인데 실행이 빠져 5시간 넘게 비면 많이
+    naver_news.collect(Context(cfg, {"last_success": {"naver_news": "2026-10-27T08:04:00+09:00"}},
+                               datetime(2026, 10, 27, 14, 5, tzinfo=KST), get=get))
+    assert set(displays) == {100}
 
 
 def test_local_gov_queries_have_region(cfg):
