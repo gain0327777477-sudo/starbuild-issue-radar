@@ -34,6 +34,42 @@ def save_json(path: Path, data, compact: bool = False) -> None:
     os.replace(tmp, path)
 
 
+ARTICLE_DIR = "articles"          # data/articles/YYYY-MM-DD.json — 발행일별로 나눠 저장
+
+
+def load_articles(data_dir: Path) -> list[Article]:
+    """보관 중인 기사 전부. 날짜별 파일을 모두 읽고, 예전 한 파일(articles.json)이 남아 있으면 그것도 읽음."""
+    out: list[Article] = []
+    for f in sorted((data_dir / ARTICLE_DIR).glob("*.json")):
+        out += [Article.from_dict(d) for d in load_json(f, {}).get("articles", [])]
+    legacy = data_dir / "articles.json"
+    if legacy.exists():
+        out += [Article.from_dict(d) for d in load_json(legacy, {}).get("articles", [])]
+    return out
+
+
+def save_articles(data_dir: Path, articles: list[Article], now: datetime) -> dict[str, int]:
+    """발행일별 파일로 공백 없이 저장 (GitHub 는 파일 하나가 100MB 를 넘으면 거부하므로 나눔).
+    보관 기간이 지나 기사가 없는 날짜 파일과 예전 한 파일(articles.json)은 지움. 반환: {파일 이름: 바이트}"""
+    folder = data_dir / ARTICLE_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    by_day: dict[str, list[dict]] = {}
+    for a in articles:
+        by_day.setdefault(a.published[:10], []).append(a.to_dict())
+    sizes = {}
+    for day, items in by_day.items():
+        path = folder / f"{day}.json"
+        save_json(path, {"updated_at": now.isoformat(), "articles": items}, compact=True)
+        sizes[path.name] = path.stat().st_size
+    for f in folder.glob("*.json"):
+        if f.name not in sizes:
+            f.unlink()
+    legacy = data_dir / "articles.json"
+    if legacy.exists():
+        legacy.unlink()
+    return sizes
+
+
 def title_key(title: str) -> str:
     """같은 기사 판별용: 띄어쓰기·기호를 뺀 제목."""
     return re.sub(r"[^0-9A-Za-z가-힣]", "", title).lower()

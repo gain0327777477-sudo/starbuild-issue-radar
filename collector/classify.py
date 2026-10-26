@@ -169,9 +169,11 @@ def detect_stage(text: str, fields: list[str], cfg: Config) -> dict | None:
         for m in re.finditer(re.escape(w), masked):
             after = text[m.end(): m.end() + 8]
             before = text[max(0, m.start() - 4): m.start()]
-            if any(x in after[:7] for x in st["ignore_after_words"]):
-                continue                             # '준공 50주년' 같은 옛날 일
-            future = any(x in after for x in st["future_words"]) or any(x in before for x in st["future_prefix_words"])
+            before_long = text[max(0, m.start() - 12): m.start()]
+            if any(x in after[:7] for x in st["ignore_after_words"]) or                     any(re.search(p, after) for p in st["ignore_after_patterns"]):
+                continue                             # '준공 50주년'·'개통 50년 만에' 같은 옛날 일
+            future = any(x in after for x in st["future_words"]) or any(x in before for x in st["future_prefix_words"])                 or any(re.search(p, before_long) for p in st["future_prefix_patterns"])     # '12월 개통'·'내년 착공'
+
             counts[sid][1 if future else 0] += 1
         masked = masked.replace(w, "□" * len(w))
     # 건의·요구 표현이 있으면 '구축계획' 같은 문서 이름은 계획 단계로 세지 않음
@@ -191,6 +193,7 @@ def detect_stage(text: str, fields: list[str], cfg: Config) -> dict | None:
             break
         if future and upcoming_stage is None:
             upcoming_stage = s
+    matched = current is not None or upcoming_stage is not None      # 단계 낱말을 하나라도 찾았는지
     upcoming = False
     if current is None and upcoming_stage is not None:
         current, upcoming = upcoming_stage, upcoming_stage is not stages[0]   # 계획 단계는 원래 '앞으로의 일'
@@ -212,4 +215,5 @@ def detect_stage(text: str, fields: list[str], cfg: Config) -> dict | None:
         "upcoming": upcoming,
         "delayed": delayed,
         "notice": notice,
+        "matched": matched,
     }

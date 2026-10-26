@@ -252,7 +252,7 @@
   // ── 카드 ───────────────────────────────────
   function stageBadge(st) {
     if (!st) return null;
-    const hot = ["start", "done", "open"].includes(st.id) && !st.upcoming;
+    const hot = ["start", "done", "open", "flight"].includes(st.id) && !st.upcoming;
     return h("span", { class: `badge ${hot ? "badge--stage-hot" : "badge--stage"}` },
       st.name + (st.delayed ? " · 일정 변경" : ""));
   }

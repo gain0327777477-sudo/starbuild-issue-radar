@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = ROOT / "config"
 
 FILES = ("office", "blog_categories", "keywords", "bridges", "sources", "filters", "scoring", "stages", "regions",
-         "directions", "packet")
+         "directions", "packet", "press")
 DIRECTION_KEYS = ("up", "down", "hold", "unclear")
 GROUPS = ("집객형", "사업형")
 TABS = ("증시·경제", "금리·대출", "숙박·관광", "부동산·상권", "지역개발")
@@ -69,6 +69,7 @@ class Config:
     regions: dict
     directions: dict
     packet: dict
+    press: dict
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -263,9 +264,15 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
                 problems.append(f"{where}: fields 의 '{fid}' 는 없는 분야입니다")
             stage_ids_by_field.setdefault(fid, set()).update(ids)
     for key in ("delay_words", "assertive_words", "assertive_allowed", "future_words", "future_prefix_words",
-                "ignore_after_words", "document_words"):
+                "ignore_after_words", "document_words", "future_prefix_patterns",
+                "ignore_after_patterns"):
         stages[key] = [str(w) for w in stages.get(key) or []]
     stages["upcoming_notice"] = str(stages.get("upcoming_notice") or "")
+    for pat in stages["future_prefix_patterns"] + stages["ignore_after_patterns"]:
+        try:
+            re.compile(pat)
+        except re.error as e:
+            problems.append(f"stages.yaml의 future_prefix_patterns: '{pat}' 형식 오류 ({e})")
 
     # regions.yaml
     reg_raw = raw["regions"]
@@ -298,6 +305,13 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
         "require_full_name": [str(x) for x in reg_raw.get("require_full_name") or []],
         "ignore_phrases": [str(x) for x in reg_raw.get("ignore_phrases") or []],
     }
+
+    # press.yaml
+    press_map = {}
+    for d, n in (raw["press"].get("press") or {}).items():
+        if not str(n or "").strip():
+            problems.append(f"press.yaml: '{d}' 의 언론사 이름이 비어 있습니다")
+        press_map[str(d).lower().removeprefix("www.")] = str(n).strip()
 
     # directions.yaml
     directions = raw["directions"]
@@ -517,5 +531,6 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
         regions=regions,
         directions=directions,
         packet=raw["packet"],
+        press=press_map,
         warnings=warnings,
     )

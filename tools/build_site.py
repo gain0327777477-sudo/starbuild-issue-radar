@@ -2,7 +2,7 @@
 
 실행:  python tools/build_site.py --version abc1234-99
   · 서비스워커 VERSION 을 바꿔서, 화면 파일을 고치면 핸드폰에도 새 화면이 들어가게 함
-  · data/ 중 화면에 필요 없는 파일(원본 기사 모음·내부 기록·블로그 글 목록)은 올리지 않음
+  · data/ 중 화면에 필요 없는 파일(원본 기사 articles/·내부 기록·블로그 글 목록)은 올리지 않음
   · _site/version.json: 배포 버전과 묶은 시각 (반영 지연 측정·설정 화면 표시용)
 """
 from __future__ import annotations

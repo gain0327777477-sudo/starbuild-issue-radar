@@ -94,22 +94,27 @@ def test_google_runs_all_queries_every_run(cfg):
     assert "google_round" not in state and res.calls == len(sent)
 
 
-def test_naver_morning_run_fetches_more(cfg, keys):
+def test_naver_fetch_size_depends_on_gap_not_clock(cfg, keys):
+    """평소 50건, 직전 네이버 수집에서 5시간 넘게 비었으면 100건 (시각이 아니라 빈 시간으로 판단)."""
     cfg.company_combos = {}
     cfg.fields = {k: v for k, v in cfg.fields.items() if k == "rate"}
     displays = []
     get = lambda url, params=None, **k: displays.append(params["display"]) or FakeResp(data={"items": []})
-    morning = datetime(2026, 10, 27, 6, 3, tzinfo=KST)
-    res = naver_news.collect(Context(cfg, {"last_success": {"naver_news": "2026-10-26T22:04:00+09:00"}}, morning, get=get))
-    assert set(displays) == {100} and "아침 첫 실행" in res.notes[0]
-    displays.clear()
-    day = datetime(2026, 10, 27, 10, 5, tzinfo=KST)
-    naver_news.collect(Context(cfg, {"last_success": {"naver_news": "2026-10-27T08:04:00+09:00"}}, day, get=get))
-    assert set(displays) == {20}
-    displays.clear()                                                              # 낮인데 실행이 빠져 5시간 넘게 비면 많이
-    naver_news.collect(Context(cfg, {"last_success": {"naver_news": "2026-10-27T08:04:00+09:00"}},
-                               datetime(2026, 10, 27, 14, 5, tzinfo=KST), get=get))
-    assert set(displays) == {100}
+
+    def run(now, last):
+        displays.clear()
+        state = {"last_success": {"naver_news": last}} if last else {}
+        res = naver_news.collect(Context(cfg, state, now, get=get))
+        return set(displays), " ".join(res.notes)
+
+    d, note = run(datetime(2026, 10, 27, 6, 3, tzinfo=KST), "2026-10-26T22:04:00+09:00")      # 06시: 밤사이 8시간
+    assert d == {100} and "8시간" in note
+    d, note = run(datetime(2026, 10, 27, 10, 5, tzinfo=KST), "2026-10-27T08:04:00+09:00")     # 낮: 2시간
+    assert d == {50} and note == ""
+    d, note = run(datetime(2026, 10, 27, 1, 30, tzinfo=KST), "2026-10-26T22:04:00+09:00")     # 새벽 수동 실행: 3.5시간
+    assert d == {50}
+    d, note = run(datetime(2026, 10, 27, 1, 30, tzinfo=KST), None)                           # 네이버 첫 수집
+    assert d == {100} and "네이버 첫 수집" in note
 
 
 def test_local_gov_queries_have_region(cfg):
@@ -193,7 +198,7 @@ def test_one_source_failing_does_not_stop_others(cfg, no_keys, monkeypatch, tmp_
     assert by_id["google_news"]["status"] == "ok" and by_id["google_news"]["count"] > 0
     assert by_id["blog_rss"]["status"] == "ok"
     assert status["failed_sources"] == ["정책브리핑"]
-    assert (tmp_path / "articles.json").exists() and (tmp_path / "blog_posts.json").exists()
+    assert list((tmp_path / "articles").glob("*.json")) and (tmp_path / "blog_posts.json").exists()
 
 
 def test_error_body_html_shows_only_title():
@@ -228,3 +233,36 @@ def test_merge_keeps_naver_copy_and_drops_old():
            _art("기준금리  동결", "naver", "2026-10-26T10:00:00+09:00")]
     out = merge_articles(old, new, NOW, retention_days=7)
     assert len(out) == 1 and out[0].source == "naver"
+
+
+# ── 언론사 이름 · 날짜별 저장 (2026-10-27) ─────────────
+
+from collector import press as press_mod
+from collector.store import load_articles, save_articles
+
+
+def test_press_name_priority(cfg):
+    assert press_mod.press_name("news.hankyung.com", cfg.press) == "한국경제"           # 앞부분이 달라도
+    assert press_mod.press_name("www.jbnews.com", {}, {"jbnews.com": "중부매일"}) == "중부매일"   # 자동으로 배운 이름
+    assert press_mod.press_name("gndomin.com", cfg.press, {"gndomin.com": "틀린이름"}) == "경남도민신문"  # 설정 파일이 먼저
+    assert press_mod.press_name("unknown-news.kr", cfg.press, {}) == "unknown-news.kr"
+
+
+def test_press_learn_and_fix():
+    g = _art("구글 기사", "google", "2026-10-26T10:00:00+09:00"); g.domain, g.press = "jbnews.com", "중부매일"
+    n = _art("네이버 기사", "naver", "2026-10-26T10:00:00+09:00"); n.domain, n.press = "jbnews.com", "jbnews.com"
+    learned = {}
+    assert press_mod.learn([g, n], learned) == 1 and learned == {"jbnews.com": "중부매일"}
+    assert press_mod.fix_press([n], {}, learned) == 1 and n.press == "중부매일"
+
+
+def test_articles_saved_by_day_and_legacy_removed(tmp_path):
+    import json
+    (tmp_path / "articles.json").write_text(json.dumps({"articles": [_art("옛 기사", "google", "2026-10-24T09:00:00+09:00").to_dict()]}), encoding="utf-8")
+    arts = load_articles(tmp_path)
+    arts += [_art("오늘 기사", "naver", "2026-10-26T09:00:00+09:00")]
+    sizes = save_articles(tmp_path, arts, NOW)
+    assert sorted(sizes) == ["2026-10-24.json", "2026-10-26.json"] and not (tmp_path / "articles.json").exists()
+    assert sorted(a.title for a in load_articles(tmp_path)) == sorted(["오늘 기사", "옛 기사"])
+    save_articles(tmp_path, [arts[-1]], NOW)                                       # 보관 기간 지난 날짜 파일은 지움
+    assert [f.name for f in (tmp_path / "articles").glob("*.json")] == ["2026-10-26.json"]

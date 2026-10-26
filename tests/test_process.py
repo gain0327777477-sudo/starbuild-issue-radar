@@ -139,6 +139,11 @@ def test_region_label_and_josa():
     ("안동댐 준공 50주년 기념 축제", ["region"], "계획·MOU", 0),
     ("신안산선 개통, 출퇴근 30분 단축", ["transport"], "개통", 10),
     ("광역철도 조기개통 기원", ["transport"], "개통 예정", 5),
+    ("이스타항공, 부산-홍콩 하늘길 열었다…첫 편 탑승률 98%", ["transport"], "취항", 5),      # 항공은 개통(+10)이 아니라 취항(+5)
+    ("양양~상하이 정기 항공편 12월 21일 신규 취항 예정", ["transport"], "취항 예정", 2.5),
+    ("동해시, 전천 경관 인도교 12월 개통", ["transport"], "개통 예정", 5),          # 날짜가 앞에 오면 예정
+    ("잠수교, 개통 50년 만에 '보행 전용' 변신", ["transport"], "계획 반영", 0),       # 50년 전 개통은 단계 아님
+    ("신안산선 개통 30주년 기념식", ["transport"], "계획 반영", 0),
     ("GTX-C 예타 통과", ["transport"], "예타 통과", 2),
 ])
 def test_stage_detection(cfg, text, fields, name, points):
@@ -517,3 +522,24 @@ def test_new_tourist_areas(cfg):
         assert place in cfg.regions["tourist_areas"]
     assert bridge.is_tourist([{"sido": "경남", "area": "통영시"}], cfg)
     assert bridge.is_tourist([{"sido": "충북", "area": "단양군"}], cfg)
+
+
+def test_region_tags_from_titles_first(cfg, monkeypatch):
+    """제목에 지역이 있으면 요약에만 잠깐 나온 지역은 붙이지 않음 (부산-홍콩 노선 기사에 '인천'이 붙던 문제)."""
+    monkeypatch.delenv("NAVER_CLIENT_ID", raising=False)
+    a1 = art("이스타항공, 부산-홍콩 하늘길 열었다…첫 편 탑승률 98%", field="transport",
+             summary="인천·김해 노선에 이어 부산-홍콩 노선에서도 외국인 관광객 유치에 기여하겠다")
+    a2 = art("에어아스타나 국제선 노선망 확대", field="transport", summary="인천 노선 공급석을 20% 늘린다", hours_ago=2)
+    out = process.build([a1, a2], [], cfg, {}, NOW)
+    by_title = {i["title"]: i for i in out["issues"]}
+    assert by_title[a1.title]["regions"] == ["부산"]                          # 요약의 인천·김해는 빠짐
+    assert by_title[a2.title]["regions"] == ["인천"]                          # 제목에 지역이 없으면 요약에서
+
+
+def test_stage_uses_titles_not_summaries(cfg, monkeypatch):
+    """요약에만 나온 '개통'으로 단계를 정하지 않음 (LH 분양 기사가 개통 +10 이 되던 문제)."""
+    monkeypatch.delenv("NAVER_CLIENT_ID", raising=False)
+    a = art("LH, 시흥거모 S-1블록 공공분양 300가구 모집", field="transport",
+            summary="인근 신안산선 개통으로 서울 접근성이 좋아졌다")
+    issue = process.build([a], [], cfg, {}, NOW)["issues"][0]
+    assert issue["stage"]["points"] == 0 and issue["stage"]["id"] != "open"

@@ -21,7 +21,8 @@ from .models import Article, now_kst
 from .schedule import next_run, scheduled_slot
 from .sources import blog_rss, google_news, korea_briefing, naver_news
 from .sources.base import Context, SkipSource
-from .store import DATA_DIR, load_json, merge_articles, save_json
+from .press import fix_press, learn
+from .store import DATA_DIR, load_articles, load_json, merge_articles, save_articles, save_json
 
 SOURCES = (naver_news, korea_briefing, google_news, blog_rss)
 
@@ -102,12 +103,19 @@ def main() -> int:
         print(f"  {mark} {report['name']}: {report['count']}건, 요청 {report['calls']}회, {report['seconds']}초"
               + (f" — {report['message']}" if report["message"] else ""))
 
-    old = [Article.from_dict(d) for d in load_json(DATA_DIR / "articles.json", {}).get("articles", [])]
+    # 언론사 이름: 구글 뉴스에서 '도메인 → 이름'을 배우고, 도메인으로 남은 기사(옛 기사 포함)를 고침
+    learned = state.setdefault("press_learned", {})
+    new_names = learn(new_articles, learned)
+    old = load_articles(DATA_DIR)
     articles = merge_articles(old, new_articles, now, cfg.scoring.get("retention_days", 7))
-    save_json(DATA_DIR / "articles.json", {"updated_at": now.isoformat(), "articles": [a.to_dict() for a in articles]})
+    fixed = fix_press(articles, cfg.press, learned)
+    if new_names or fixed:
+        print(f"언론사 이름: 새로 배운 도메인 {new_names}개, 이름을 고친 기사 {fixed}건")
+    sizes = save_articles(DATA_DIR, articles, now)
     if posts is not None:
         save_json(DATA_DIR / "blog_posts.json", {"updated_at": now.isoformat(), "posts": posts})
-    print(f"새로 받은 기사 {len(new_articles)}건 → 중복 정리 후 보관 중인 기사 {len(articles)}건 (최근 {cfg.scoring.get('retention_days', 7)}일)")
+    print(f"새로 받은 기사 {len(new_articles)}건 → 중복 정리 후 보관 중인 기사 {len(articles)}건 (최근 {cfg.scoring.get('retention_days', 7)}일, "
+          f"날짜별 파일 {len(sizes)}개 · 합계 {sum(sizes.values()) / 1024 / 1024:.1f}MB · 가장 큰 파일 {max(sizes.values(), default=0) / 1024 / 1024:.1f}MB)")
 
     # 3단계: 정제·묶기·연결·점수·추천 (데이터랩은 상위 이슈가 정해진 뒤 여기서 조회)
     stats = None
@@ -129,6 +137,7 @@ def main() -> int:
         "has_naver_keys": has_naver_keys(),
         "new_articles": len(new_articles),
         "total_articles": len(articles),
+        "article_files_mb": round(sum(sizes.values()) / 1024 / 1024, 1),
         "processing": stats,
         "sources": reports,
         "failed_sources": [r["name"] for r in failed],

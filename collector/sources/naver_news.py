@@ -15,7 +15,8 @@ NAME = "네이버 뉴스"
 URL = "https://openapi.naver.com/v1/search/news.json"
 
 
-def parse_items(data: dict, query: str, field: str | None, fetched_at: str) -> list[Article]:
+def parse_items(data: dict, query: str, field: str | None, fetched_at: str, press_map: dict | None = None,
+                learned: dict | None = None) -> list[Article]:
     out = []
     for it in data.get("items") or []:
         url = it.get("originallink") or it.get("link") or ""
@@ -27,7 +28,7 @@ def parse_items(data: dict, query: str, field: str | None, fetched_at: str) -> l
             id=article_id(url),
             title=clean_text(it.get("title")),
             url=url,
-            press=press_name(domain),
+            press=press_name(domain, press_map, learned),
             domain=domain,
             source="naver",
             published=published.isoformat(),
@@ -48,13 +49,17 @@ def _add_calls(ctx: Context, n: int) -> None:
     ctx.state["naver_calls"] = {"date": ctx.now.date().isoformat(), "count": _calls_today(ctx) + n}
 
 
-def per_keyword_now(ctx: Context) -> tuple[int, bool]:
-    """아침 첫 실행(06시대)이거나 직전 성공 수집에서 morning_gap_hours 넘게 지났으면(밤사이·실행 누락) 많이 받음."""
+def per_keyword_now(ctx: Context) -> tuple[int, str]:
+    """직전 네이버 수집에서 morning_gap_hours 넘게 지났으면 많이 받음 — 06시 실행(밤사이 8시간), 실행 누락, 첫 수집.
+    반환: (키워드당 기사 수, 많이 받는 이유 — 평소면 "")"""
     s = ctx.cfg.sources["naver_news"]
     last = (ctx.state.get("last_success") or {}).get(ID)
-    gap = (ctx.now - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 999
-    morning = ctx.now.hour < 7 or gap >= s.get("morning_gap_hours", 5)
-    return (min(100, s.get("per_keyword_morning", 100)) if morning else s["per_keyword"]), morning
+    if not last:
+        return min(100, s.get("per_keyword_morning", 100)), "네이버 첫 수집"
+    gap = (ctx.now - datetime.fromisoformat(last)).total_seconds() / 3600
+    if gap >= s.get("morning_gap_hours", 5):
+        return min(100, s.get("per_keyword_morning", 100)), f"직전 수집 {gap:.0f}시간 전(밤사이·실행 누락)"
+    return s["per_keyword"], ""
 
 
 def collect(ctx: Context) -> SourceResult:
@@ -73,9 +78,9 @@ def collect(ctx: Context) -> SourceResult:
         result.notes.append(f"오늘 남은 호출 {room}회 → 검색어 {len(queries)}개 중 {room}개만 검색")
         queries = queries[:room]
 
-    per_keyword, morning = per_keyword_now(ctx)
-    if morning:
-        result.notes.append(f"아침 첫 실행 — 밤사이 기사까지 키워드당 {per_keyword}건")
+    per_keyword, why = per_keyword_now(ctx)
+    if why:
+        result.notes.append(f"{why} — 빈 시간 기사까지 키워드당 {per_keyword}건")
     headers = {"X-Naver-Client-Id": get_secret("NAVER_CLIENT_ID"), "X-Naver-Client-Secret": get_secret("NAVER_CLIENT_SECRET")}
     fetched_at = ctx.now.isoformat()
     failed = []
@@ -93,7 +98,7 @@ def collect(ctx: Context) -> SourceResult:
                 failed.append(f"{query}({e})")
                 continue
             result.calls += 1
-            result.articles += parse_items(r.json(), query, field, fetched_at)
+            result.articles += parse_items(r.json(), query, field, fetched_at, ctx.cfg.press, ctx.state.get("press_learned"))
             time.sleep(0.05)
     finally:
         _add_calls(ctx, result.calls)

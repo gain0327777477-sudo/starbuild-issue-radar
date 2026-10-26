@@ -102,8 +102,9 @@ def main() -> int:
     print(f"  네이버 뉴스 검색 : 1회 {e['naver_per_run']}건(키워드 {e['naver_base']} + 대기업 조합 {e['naver_combo']}) "
           f"× {e['runs_per_day']} = {e['naver_per_day']:,}건/일 "
           f"(스스로 건 상한 {e['naver_cap']:,} · 네이버 한도 25,000 → {'한도 이내' if e['naver_per_day'] <= 25000 else '⚠ 한도 초과'})")
-    print(f"                     아침 첫 실행은 키워드당 기사 {cfg.sources['naver_news'].get('per_keyword_morning', 100)}건"
-          f"(평소 {cfg.sources['naver_news']['per_keyword']}건) — 호출 수는 같음")
+    print(f"                     키워드당 기사 평소 {cfg.sources['naver_news']['per_keyword']}건, 직전 수집에서 "
+          f"{cfg.sources['naver_news'].get('morning_gap_hours', 5)}시간 넘게 비면(06시 등) "
+          f"{cfg.sources['naver_news'].get('per_keyword_morning', 100)}건 — 호출 수는 같음")
     print(f"  구글뉴스 RSS     : 1회 {e['google_per_run']}건(정책브리핑 {e['briefing_per_run']} + 일반·지자체 {e['general_per_run']}, 매번 전체) "
           f"× {e['runs_per_day']} = {e['google_per_day']:,}건/일 (공식 한도 없음 · 1회 약 {e['google_seconds']}초)")
     d = e["datalab"]

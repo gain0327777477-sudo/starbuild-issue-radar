@@ -10,6 +10,7 @@ import time
 from collections import Counter
 
 from . import bridge as bridge_mod
+from .text import strip_phrases
 from .classify import RegionTagger, article_text, classify, detect_stage, region_display, region_label
 from .cluster import agency_map_from, cluster_articles
 from .config import Config
@@ -51,13 +52,22 @@ def _issue_from_cluster(members: list[Article], cls: dict, tagger: RegionTagger,
     latest = recent[0].published
     text = " ".join(article_text(a, cfg) for a in recent[:MAX_TEXT_MEMBERS])
 
-    region_counts: Counter = Counter()
+    # 지역 태그: 제목(지자체 보도자료면 그 시·도 포함)에서 찾은 지역만. 제목에 지역이 하나도 없을 때만 요약의 지역
+    # (2026-10-27: '부산-홍콩 노선' 기사에 요약에만 잠깐 나온 '인천'이 붙던 문제)
+    title_counts: Counter = Counter()
+    summary_counts: Counter = Counter()
     for a in recent[:MAX_TEXT_MEMBERS]:
-        for t in tagger.tag(f"{a.title} {a.summary}", a.region_hint):
-            region_counts[(t["sido"], t["area"])] += 1
+        for t in tagger.tag(a.title, a.region_hint):
+            title_counts[(t["sido"], t["area"])] += 1
+        for t in tagger.tag(a.summary):
+            summary_counts[(t["sido"], t["area"])] += 1
+    region_counts = title_counts or summary_counts
     tags = [{"sido": s, "area": ar} for (s, ar), _ in region_counts.most_common(3)]
 
-    stage = detect_stage(text, fields, cfg)
+    # 진행 단계: 묶인 기사들의 '제목'에서만 판단 (2026-10-27: 요약까지 보니 'LH 분양' 기사가 요약의 '개통'으로
+    # 개통 +10 이 되던 문제). 제목에 단계 낱말이 없으면 기본 단계(계획 — 신중하게, 가산점 없음)
+    titles = " ".join(strip_phrases(a.title, cfg.filters.get("classify_ignore") or []) for a in recent[:MAX_TEXT_MEMBERS])
+    stage = detect_stage(titles, fields, cfg)
     br = bridge_mod.connect(fields, text, stage, tags, region_label(tags), cfg,
                             rep_title=rep.title, other_titles=[a.title for a in recent if a is not rep])
     f = cfg.fields.get(primary)
@@ -175,8 +185,8 @@ def build(articles: list[Article], posts: list[dict], cfg: Config, state: dict, 
 
 def run(cfg: Config, state: dict, now, data_dir, get=None) -> dict:
     """data/articles.json·blog_posts.json 을 읽어 계산하고 issues.json·today.json 을 쓴다."""
-    from .store import load_json, save_json
-    articles = [Article.from_dict(d) for d in load_json(data_dir / "articles.json", {}).get("articles", [])]
+    from .store import load_articles, load_json, save_json
+    articles = load_articles(data_dir)
     posts = load_json(data_dir / "blog_posts.json", {}).get("posts", [])
     out = build(articles, posts, cfg, state, now, get=get)
     save_json(data_dir / "issues.json", {"updated_at": now.isoformat(), "issues": out["issues"], "stats": out["stats"]}, compact=True)
