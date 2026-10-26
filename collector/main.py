@@ -2,6 +2,7 @@
 
 실행:  python -m collector.main
 결과:  data/articles.json (최근 7일 기사), data/blog_posts.json, data/status.json(화면 상단 표시용), data/state.json(내부 기록)
+       data/issues.json (화면용 이슈), data/today.json (오늘 쓸 글 추천 3개) — 3단계(process.py)
 
 소스 하나가 실패해도 나머지는 계속 수집하고, 실패 내역은 status.json 에 남겨 화면에 표시한다.
 """
@@ -11,6 +12,7 @@ import sys
 import time
 import traceback
 
+from . import process
 from .config import ConfigError, load_config
 from .env import ROOT_ENV, has_naver_keys, load_dotenv, mask
 from .http import SourceError
@@ -77,15 +79,24 @@ def main() -> int:
         print(f"  {mark} {report['name']}: {report['count']}건, 요청 {report['calls']}회, {report['seconds']}초"
               + (f" — {report['message']}" if report["message"] else ""))
 
-    reports.append({"id": "datalab", "name": "검색 추이(데이터랩)", "status": "skipped", "count": 0, "calls": 0,
-                    "message": "네이버 키 없음" if not has_naver_keys() else "3단계(점수)에서 연결 예정",
-                    "seconds": 0, "last_success": ""})
-
     old = [Article.from_dict(d) for d in load_json(DATA_DIR / "articles.json", {}).get("articles", [])]
     articles = merge_articles(old, new_articles, now, cfg.scoring.get("retention_days", 7))
     save_json(DATA_DIR / "articles.json", {"updated_at": now.isoformat(), "articles": [a.to_dict() for a in articles]})
     if posts is not None:
         save_json(DATA_DIR / "blog_posts.json", {"updated_at": now.isoformat(), "posts": posts})
+    print(f"새로 받은 기사 {len(new_articles)}건 → 중복 정리 후 보관 중인 기사 {len(articles)}건 (최근 {cfg.scoring.get('retention_days', 7)}일)")
+
+    # 3단계: 정제·묶기·연결·점수·추천 (데이터랩은 상위 이슈가 정해진 뒤 여기서 조회)
+    stats = None
+    try:
+        out = process.run(cfg, state, now, DATA_DIR, get=ctx.get)
+        reports.append(out["datalab_report"])
+        stats = out["stats"]
+        process.print_summary(out)
+    except Exception as e:
+        reports.append({"id": "process", "name": "정제·점수 계산", "status": "failed", "count": 0, "calls": 0,
+                        "message": mask(f"프로그램 오류: {type(e).__name__}: {e}"), "seconds": 0, "last_success": ""})
+        traceback.print_exc()
 
     failed = [r for r in reports if r["status"] in ("failed", "partial")]
     save_json(DATA_DIR / "status.json", {
@@ -93,11 +104,11 @@ def main() -> int:
         "has_naver_keys": has_naver_keys(),
         "new_articles": len(new_articles),
         "total_articles": len(articles),
+        "processing": stats,
         "sources": reports,
         "failed_sources": [r["name"] for r in failed],
     })
     save_json(DATA_DIR / "state.json", state)
-    print(f"새로 받은 기사 {len(new_articles)}건 → 중복 정리 후 보관 중인 기사 {len(articles)}건 (최근 {cfg.scoring.get('retention_days', 7)}일)")
 
     # 모든 소스가 실패했을 때만 오류로 끝냄 (GitHub 실행 기록에 빨간 표시)
     worked = [r for r in reports if r["status"] in ("ok", "partial")]

@@ -29,13 +29,16 @@ def body_summary(text: str) -> str:
 
 
 def http_get(url: str, *, params: dict | None = None, headers: dict | None = None, retries: int = 1,
-             retry_statuses: tuple[int, ...] = ()) -> requests.Response:
-    """GET 요청. 접속 실패·5xx(와 retry_statuses)는 2초 쉬고 한 번 더 시도."""
+             retry_statuses: tuple[int, ...] = (), json_body: dict | None = None) -> requests.Response:
+    """GET 요청(json_body 가 있으면 POST). 접속 실패·5xx(와 retry_statuses)는 2초 쉬고 한 번 더 시도."""
     h = {"User-Agent": USER_AGENT, **(headers or {})}
     last: SourceError | None = None
     for attempt in range(retries + 1):
         try:
-            r = requests.get(url, params=params, headers=h, timeout=TIMEOUT)
+            if json_body is not None:
+                r = requests.post(url, json=json_body, headers=h, timeout=TIMEOUT)
+            else:
+                r = requests.get(url, params=params, headers=h, timeout=TIMEOUT)
         except requests.Timeout:
             last = SourceError(f"응답 없음({TIMEOUT}초 초과)")
         except requests.RequestException as e:

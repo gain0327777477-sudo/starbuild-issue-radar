@@ -18,6 +18,7 @@ attract:
   # 진행 단계 가산(착공·개통 등)은 stages.yaml 의 points 에서 조절합니다
   ad_penalty_strong: -10
   ad_penalty_soft: -3
+  people_penalty: -8           # 인물·인사 기사(filters.yaml 의 people_words)
   stars:                       # 집객 ★ 기준 (이 점수 이상)
     three: 15
     two: 8
@@ -48,3 +49,7 @@ recommend:
 
 # 데이터 보관 기간
 retention_days: 7
+
+# 화면으로 보내는 이슈 수 상한 (핸드폰이 빨리 열리도록). 탭마다 최소 min_per_tab 개는 남깁니다.
+max_issues: 500
+min_per_tab: 40

@@ -201,8 +201,8 @@ fields:
       - 신설역|역 신설|신규 역
       - 경전철
       - 트램
-      - KTX 정차|KTX 신규 노선|KTX 개통
-      - SRT 정차|SRT 노선|SRT 개통
+      - KTX 정차|KTX 신규 노선|KTX 개통|KTX
+      - SRT 정차|SRT 노선|SRT 개통|SRT
       - GTX
       - 광역철도
       - 복선전철

@@ -249,8 +249,10 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
             if fid not in fields:
                 problems.append(f"{where}: fields 의 '{fid}' 는 없는 분야입니다")
             stage_ids_by_field.setdefault(fid, set()).update(ids)
-    for key in ("delay_words", "assertive_words", "assertive_allowed"):
+    for key in ("delay_words", "assertive_words", "assertive_allowed", "future_words", "future_prefix_words",
+                "ignore_after_words"):
         stages[key] = [str(w) for w in stages.get(key) or []]
+    stages["upcoming_notice"] = str(stages.get("upcoming_notice") or "")
 
     # regions.yaml
     reg_raw = raw["regions"]
@@ -298,6 +300,7 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
             problems.append(f"{where}: id 가 중복됩니다")
         rule_ids.add(r.get("id"))
         r["words"] = [str(w) for w in (r.get("words") or [])]
+        r["also_words"] = [str(w) for w in (r.get("also_words") or [])]
         r["stages"] = [str(s) for s in (r.get("stages") or [])]
         rule_fields = r.get("fields") or []
         for fid in rule_fields:

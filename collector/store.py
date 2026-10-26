@@ -24,11 +24,13 @@ def load_json(path: Path, default):
         return default
 
 
-def save_json(path: Path, data) -> None:
-    """반쯤 쓰다 끊겨도 파일이 깨지지 않게 임시 파일에 쓴 뒤 바꿔치기."""
+def save_json(path: Path, data, compact: bool = False) -> None:
+    """반쯤 쓰다 끊겨도 파일이 깨지지 않게 임시 파일에 쓴 뒤 바꿔치기.
+    compact=True: 핸드폰이 받는 파일은 공백 없이 작게."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":")) if compact else json.dumps(data, ensure_ascii=False, indent=1)
+    tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
 
 
