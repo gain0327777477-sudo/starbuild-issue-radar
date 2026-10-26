@@ -161,25 +161,29 @@ def detect_stage(text: str, fields: list[str], cfg: Config) -> dict | None:
         return None
     stages = st[group]["stages"]
 
-    def occurrences(s: dict) -> tuple[int, int]:
-        """(실제로 일어난 언급 수, 예정·희망 언급 수)"""
-        actual = future = 0
-        for w in s["words"]:
-            for m in re.finditer(re.escape(w), text):
-                after = text[m.end(): m.end() + 8]
-                before = text[max(0, m.start() - 4): m.start()]
-                if any(x in after[:7] for x in st["ignore_after_words"]):
-                    continue                         # '준공 50주년' 같은 옛날 일
-                if any(x in after for x in st["future_words"]) or any(x in before for x in st["future_prefix_words"]):
-                    future += 1
-                else:
-                    actual += 1
-        return actual, future
+    # 단계 낱말을 긴 것부터 찾고, 찾은 자리는 가림 → '유치 희망'(건의·요구) 안의 '유치'(계획)가 다시 걸리지 않게
+    counts = {s["id"]: [0, 0] for s in stages}       # [실제로 일어난 언급 수, 예정·희망 언급 수]
+    pairs = sorted(((w, s["id"]) for s in stages for w in s["words"]), key=lambda x: len(x[0]), reverse=True)
+    masked = text
+    for w, sid in pairs:
+        for m in re.finditer(re.escape(w), masked):
+            after = text[m.end(): m.end() + 8]
+            before = text[max(0, m.start() - 4): m.start()]
+            if any(x in after[:7] for x in st["ignore_after_words"]):
+                continue                             # '준공 50주년' 같은 옛날 일
+            future = any(x in after for x in st["future_words"]) or any(x in before for x in st["future_prefix_words"])
+            counts[sid][1 if future else 0] += 1
+        masked = masked.replace(w, "□" * len(w))
+    # 건의·요구 표현이 있으면 '구축계획' 같은 문서 이름은 계획 단계로 세지 않음
+    lowest = stages[0]["id"]
+    if sum(counts[lowest]) and len(stages) > 1:
+        docs = sum(text.count(d) for d in st["document_words"])
+        plan_id = stages[1]["id"]
+        counts[plan_id][0] = max(0, counts[plan_id][0] - docs)
 
     # 더 진행된 단계부터 내려가며: 실제로 일어났다는 언급이 있는 가장 높은 단계 = 현재 단계
     # 그보다 높은 단계가 '예정'으로만 나오면 next 로 기록 (예: 착공했고 2028년 개통 예정)
     current, upcoming_stage = None, None
-    counts = {s["id"]: occurrences(s) for s in stages}
     for s in reversed(stages):
         actual, future = counts[s["id"]]
         if actual and current is None and (actual >= future or s is stages[0]):

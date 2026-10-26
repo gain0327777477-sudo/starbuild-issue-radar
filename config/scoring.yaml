@@ -35,10 +35,12 @@ cluster_similarity: 0.45
 
 # 오늘 쓸 글 추천 — 매일 3개 (분야는 keywords.yaml 의 영문 이름)
 #  fields 에서 먼저 고르고, 후보가 없으면 backup_fields 에서 고릅니다.
+#  rank_by: attract 면 집객 점수 순, 없으면 총점(집객+연결) 순.
 recommend:
   slots:
     - name: 집객형 (주식·경제)
       fields: [stock, macro, asset]
+      rank_by: attract           # 집객 점수(화제성·검색 추이) 순. 연결은 '연결 약함'만 제외
     - name: 사업형 (금리·대출·숙박)
       fields: [rate, lodging]
       backup_fields: [commercial, policy, rental, etc]
@@ -46,6 +48,7 @@ recommend:
       fields: [region, transport, corp]
       backup_fields: [national, auction, policy]
   exclude_written_days: 7      # 최근 7일 안에 블로그에 쓴 주제와 겹치면 제외
+  exclude_people: true         # [프로필]·[인사]·[부고]·동정 등 인물 기사(filters.yaml 의 people_words)는 추천에서 제외(목록에는 남김)
 
 # 데이터 보관 기간
 retention_days: 7

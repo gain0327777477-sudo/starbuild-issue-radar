@@ -149,8 +149,8 @@ def test_stage_detection(cfg, text, fields, name, points):
 def test_stage_notices_and_delay(cfg):
     plan = detect_stage("반도체 공장 투자협약 체결", ["corp"], cfg)
     assert plan["cautious"] and "확정된 투자가 아닙니다" in plan["notice"]
-    tr = detect_stage("국가철도망 구축계획 반영 건의", ["transport"], cfg)
-    assert "개통 시기 미정" in tr["notice"]
+    tr = detect_stage("국가철도망 구축계획 반영 확정", ["transport"], cfg)
+    assert tr["name"] == "계획 반영" and "개통 시기 미정" in tr["notice"]
     late = detect_stage("인천발 KTX 연말개통 어려울듯", ["transport"], cfg)
     assert late["delayed"] and late["upcoming"]
     assert detect_stage("기준금리 동결", ["rate"], cfg) is None
@@ -185,8 +185,9 @@ def test_cluster_not_across_far_days(cfg):
 
 # ── 연결 카테고리 ────────────────────────────────
 
-def conn(cfg, fields, text, stage=None, tags=(), place=""):
-    return bridge.connect(fields, text, stage, list(tags), place, cfg)
+def conn(cfg, fields, text, stage=None, tags=(), place="", rep_title=None, others=()):
+    return bridge.connect(fields, text, stage, list(tags), place, cfg,
+                          rep_title=text if rep_title is None else rep_title, other_titles=list(others))
 
 
 def test_bridge_rate_to_loan(cfg):
@@ -195,8 +196,8 @@ def test_bridge_rate_to_loan(cfg):
 
 
 def test_bridge_stock_uses_soft_cta(cfg):
-    b = conn(cfg, ["stock"], "코스피 급락 변동성 확대")
-    assert b["rule_id"] == "stock_down" and b["strength"] == "간접" and b["cta"] == "soft"
+    b = conn(cfg, ["stock"], "코스피 급락 변동성 확대", rep_title="코스피 급락 변동성 확대")
+    assert b["rule_id"] == "stock_market" and b["direction"]["id"] == "down" and b["strength"] == "간접" and b["cta"] == "soft"
 
 
 def test_bridge_fx_tourist_bonus_only_in_tourist_area(cfg):
@@ -307,8 +308,9 @@ def test_written_match(cfg):
     assert other is None
 
 
-def _iss(id_, field, total, strength="직접", written=None):
-    return {"id": id_, "primary_field": field, "scores": {"total": total}, "bridge": {"strength": strength}, "written": written}
+def _iss(id_, field, total, strength="직접", written=None, attract=None, people=()):
+    return {"id": id_, "primary_field": field, "scores": {"total": total, "attract": total if attract is None else attract},
+            "bridge": {"strength": strength}, "written": written, "people": list(people)}
 
 
 def test_pick_today_slots_backup_and_exclusions(cfg):
@@ -397,3 +399,121 @@ def test_build_without_keys(cfg, monkeypatch):
     picked = {p["issue_id"] for p in out["today"]}
     assert rate["id"] not in picked                                                 # 이미 쓴 주제는 추천 제외
     assert len(titles) == 3
+
+
+# ── 방향 판정 (2026-10-26 실제 기사 제목) ─────────────
+
+from collector.direction import detect as detect_direction
+
+
+@pytest.mark.parametrize("title, expected", [
+    ("원/달러 환율 1.5원 내린 1,323.1원…연중 저점 또 경신", "down"),      # 3단계 추천에 올라왔던 기사
+    ("’1,310원대 근접’ 원·달러 환율…명목실효환율 2년 만에 최고", "down"),  # 실효환율 최고 = 원화 강세
+    ("원화 가치 상승랠리에 명목실효환율도 2년만에 최고", "down"),
+    ("원·달러 환율 또 연저점…반도체발 달러 매도에 1323.1원 마감", "down"),
+    ("외국인 팔고 서학개미 사는데 환율은 뚝?‥반도체 '초호황'", "down"),
+    ("‘킹달러 가고 강원화’ 환율 1,200원대까지 내려간다고?", "down"),
+    ("환율 1,400원 돌파…원화 약세 지속", "up"),
+    ("달러 강세에 환율 연고점 경신", "up"),
+    ("1561원 찍고 1321원...환율변동 11년來 최대", "unclear"),
+    ("HD건설기계, 잘 나가던 실적에 환율이 '찬물'", "unclear"),
+])
+def test_fx_direction_real_titles(cfg, title, expected):
+    assert detect_direction("fx", title, [], cfg)["id"] == expected
+
+
+@pytest.mark.parametrize("title, expected", [
+    ("한국은행, 기준금리 3%로 동결…2연속 인상 후 숨고르기", "hold"),
+    ("물가 재상승 직면한 美연준, 금리 '매파적 동결' 유력", "hold"),
+    ("여윳돈 늘고 금리 오르자…한풀 꺾인 대출", "up"),
+    ("금리 또 오르나 … 대출자들, 11월이 두렵다", "up"),
+    ("NH농협은행, 한 달새 세번째 대출금리 인하…전세대출 0.3%P↓", "down"),
+    ("연준 금리 인상 전망 후퇴에 금값 4,000달러 돌파", "down"),
+])
+def test_rate_direction_real_titles(cfg, title, expected):
+    assert detect_direction("rate", title, [], cfg)["id"] == expected
+
+
+@pytest.mark.parametrize("title, expected", [
+    ("코스피 5400대로 ‘와르르’…7개월만 최저치", "down"),
+    ("코스피, 외인 줄매도에 5500선마저 붕괴…7개월 만에 최저", "down"),
+    ("코스피, 반도체 반등 무산에 5500선 내줘", "down"),
+    ("코스피 사상 최고치 경신…6000선 돌파", "up"),
+    ("코스피 혼조 마감", "unclear"),
+])
+def test_stock_direction_real_titles(cfg, title, expected):
+    assert detect_direction("stock", title, [], cfg)["id"] == expected
+
+
+@pytest.mark.parametrize("title, expected", [
+    ("5대 은행 총수신 39조원 증가…정기예금 금리 인상", "up"),
+    ("고금리에 은행은 예금금리 올리는데…저축銀 조달비용 부담에 속앓이", "up"),
+    ("시중은행 예금 금리 줄줄이 인하", "down"),
+])
+def test_deposit_direction_real_titles(cfg, title, expected):
+    assert detect_direction("deposit", title, [], cfg)["id"] == expected
+
+
+def test_fx_bridge_sentence_follows_direction(cfg):
+    low = conn(cfg, ["macro"], "원/달러 환율 1.5원 내린 1,323.1원…연중 저점 또 경신")
+    assert low["rule_id"] == "fx_tourism" and low["direction"]["label"] == "원화 강세(환율 하락)"
+    assert "해외여행" in low["sentence"] and "방한" not in low["sentence"]          # 방향 반대 문장이 나오지 않음
+    high = conn(cfg, ["macro"], "환율 1,400원 돌파…원화 약세 지속", tags=[{"sido": "제주", "area": ""}])
+    assert "방한" in high["sentence"] and high["tourist_bonus"] == 3
+    low_jeju = conn(cfg, ["macro"], "환율 연저점", tags=[{"sido": "제주", "area": ""}])
+    assert low_jeju["tourist_bonus"] == 0                                            # 원화 강세면 관광지 가산 없음
+    unclear = conn(cfg, ["macro"], "환율변동 11년來 최대")
+    assert unclear["direction"]["id"] == "unclear" and unclear["cta"] == "soft"
+
+
+def test_rate_bridge_by_direction(cfg):
+    hold = conn(cfg, ["rate"], "한국은행, 기준금리 3%로 동결")
+    up = conn(cfg, ["rate"], "금리 또 오르나 … 대출자들, 11월이 두렵다")
+    down = conn(cfg, ["rate"], "대출금리 인하…전세대출 0.3%P↓")
+    assert "동결" in hold["sentence"] and hold["cta"] == "loan"
+    assert "이자가 늘어납니다" in up["sentence"] and "이자 부담이 줄면서" in down["sentence"]
+    unclear = conn(cfg, ["rate"], "기준금리 결정 앞두고 시장 촉각")
+    assert unclear["direction"]["id"] == "unclear" and unclear["cta"] == "soft"
+    no_rate_word = conn(cfg, ["rate"], "주담대는 '유지' 신용대출은 '조인다'…대출문턱 여전")
+    assert no_rate_word["direction"] is None and no_rate_word["cta"] == "loan"     # 금리 기사가 아니면 기본 문장
+
+
+def test_other_titles_help_when_rep_title_is_unclear(cfg):
+    d = detect_direction("stock", "코스피 마감 시황", ["코스피 1.46% 하락", "코스피 7개월 만에 최저"], cfg)
+    assert d["id"] == "down"
+
+
+# ── 건의·요구 단계 ──────────────────────────────
+
+@pytest.mark.parametrize("text, fields", [
+    ("충북도, 중부·경부고속도로 확장 범도민 서명운동 12월 말까지 연장", ["transport"]),
+    ("경기남부광역철도, 국가철도망 구축계획에 반드시 반영시킬 것", ["transport"]),
+    ("시민단체, 공공기관 2차 이전 유치 희망 결의", ["national"]),
+    ("국가철도망 구축계획 반영 촉구 건의문 전달", ["transport"]),
+])
+def test_request_stage(cfg, text, fields):
+    s = detect_stage(text, fields, cfg)
+    assert s["name"] == "건의·요구" and s["points"] == 0
+    assert "아직 정부 계획에 반영되지 않은 지역 요구 단계" in s["notice"]
+
+
+# ── 오늘 추천 기준 ──────────────────────────────
+
+def test_attract_slot_ranks_by_attract_and_people_excluded(cfg):
+    issues = [
+        _iss("s_total", "stock", 30, attract=10),          # 총점은 높지만 집객 낮음
+        _iss("s_attract", "macro", 22, attract=20, strength="간접"),
+        _iss("people", "rate", 50, people=["[프로필]"]),   # 인물 기사 → 추천 제외
+        _iss("l1", "lodging", 25),
+        _iss("t1", "transport", 22),
+    ]
+    picks = {p["slot"]: p for p in pick_today(issues, cfg)}
+    assert picks["집객형 (주식·경제)"]["issue_id"] == "s_attract" and picks["집객형 (주식·경제)"]["ranked_by"] == "집객 점수"
+    assert picks["사업형 (금리·대출·숙박)"]["issue_id"] == "l1"
+
+
+def test_new_tourist_areas(cfg):
+    for place in ["제천", "단양", "가평", "양평", "춘천", "평창", "양양", "태안", "보령", "통영", "거제", "남해", "순천", "목포", "군산"]:
+        assert place in cfg.regions["tourist_areas"]
+    assert bridge.is_tourist([{"sido": "경남", "area": "통영시"}], cfg)
+    assert bridge.is_tourist([{"sido": "충북", "area": "단양군"}], cfg)

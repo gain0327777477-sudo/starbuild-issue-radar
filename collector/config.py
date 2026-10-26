@@ -16,7 +16,9 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = ROOT / "config"
 
-FILES = ("office", "blog_categories", "keywords", "bridges", "sources", "filters", "scoring", "stages", "regions")
+FILES = ("office", "blog_categories", "keywords", "bridges", "sources", "filters", "scoring", "stages", "regions",
+         "directions", "packet")
+DIRECTION_KEYS = ("up", "down", "hold", "unclear")
 GROUPS = ("집객형", "사업형")
 TABS = ("증시·경제", "금리·대출", "숙박·관광", "부동산·상권", "지역개발")
 STRENGTHS = ("직접", "간접")
@@ -62,6 +64,8 @@ class Config:
     scoring: dict
     stages: dict
     regions: dict
+    directions: dict
+    packet: dict
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -250,7 +254,7 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
                 problems.append(f"{where}: fields 의 '{fid}' 는 없는 분야입니다")
             stage_ids_by_field.setdefault(fid, set()).update(ids)
     for key in ("delay_words", "assertive_words", "assertive_allowed", "future_words", "future_prefix_words",
-                "ignore_after_words"):
+                "ignore_after_words", "document_words"):
         stages[key] = [str(w) for w in stages.get(key) or []]
     stages["upcoming_notice"] = str(stages.get("upcoming_notice") or "")
 
@@ -285,6 +289,20 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
         "require_full_name": [str(x) for x in reg_raw.get("require_full_name") or []],
         "ignore_phrases": [str(x) for x in reg_raw.get("ignore_phrases") or []],
     }
+
+    # directions.yaml
+    directions = raw["directions"]
+    topics = directions.get("topics") or {}
+    for tid, t in topics.items():
+        if not isinstance(t, dict) or not t.get("labels") or not t.get("words"):
+            problems.append(f"directions.yaml의 {tid}: labels 와 words 가 있어야 합니다")
+            continue
+        t["phrases"] = {d: [str(p) for p in v or []] for d, v in (t.get("phrases") or {}).items()}
+        t["words"] = {d: [str(w) for w in v or []] for d, v in (t.get("words") or {}).items()}
+        for d in list(t["phrases"]) + list(t["words"]):
+            if d not in ("up", "down", "hold"):
+                problems.append(f"directions.yaml의 {tid}: '{d}' 는 up / down / hold 중 하나여야 합니다")
+    directions["topics"] = topics
 
     # bridges.yaml
     bridges = raw["bridges"]
@@ -337,6 +355,26 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
                 problems.append(f"{where}: {key} 가 비어 있습니다")
         for ph in set(re.findall(r"\{([^}]*)\}", str(r.get("sentence") or ""))) - SENTENCE_PLACEHOLDERS:
             problems.append(f"{where}: sentence 의 {{{ph}}} 는 쓸 수 없는 자리표시입니다 ({{지역}} 만 가능)")
+        dconf = r.get("direction")
+        if dconf:
+            if dconf.get("topic") not in topics:
+                problems.append(f"{where}: direction.topic '{dconf.get('topic')}' 는 directions.yaml 에 없습니다")
+            dconf["applies_if"] = [str(w) for w in dconf.get("applies_if") or []]
+            for d in DIRECTION_KEYS:
+                block = dconf.get(d)
+                if block is None:
+                    continue
+                for cat in block.get("categories") or []:
+                    if cat not in names:
+                        problems.append(f"{where}의 direction.{d}: 카테고리 '{cat}' 가 blog_categories.yaml 에 없습니다")
+                if block.get("cta") and block["cta"] not in templates:
+                    problems.append(f"{where}의 direction.{d}: cta '{block['cta']}' 문구가 없습니다")
+            if "unclear" not in dconf:
+                problems.append(f"{where}: direction 에는 unclear(방향 불분명일 때 중립 문장)가 꼭 있어야 합니다")
+            extra = set(dconf) - set(DIRECTION_KEYS) - {"topic", "applies_if"}
+            if extra:
+                problems.append(f"{where}: direction 에 알 수 없는 항목 {sorted(extra)}")
+        r["direction"] = dconf or None
 
     soft_fields = [str(f) for f in bridges.get("soft_cta_fields") or []]
     for fid in soft_fields:
@@ -396,6 +434,11 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
     for r in rules:
         texts += [(f"규칙 {r['id']} logic", str(r["logic"])), (f"규칙 {r['id']} sentence", str(r["sentence"])),
                   (f"규칙 {r['id']} notice", r["notice"])]
+        for d in DIRECTION_KEYS:
+            block = (r["direction"] or {}).get(d) or {}
+            for key in ("logic", "sentence"):
+                if block.get(key):
+                    texts.append((f"규칙 {r['id']} {d}.{key}", str(block[key])))
     for where, text in texts:
         clean = text
         for cat in names:          # '대출 가능·불가 판단' 같은 카테고리 이름 자체는 검사에서 뺌
@@ -411,7 +454,9 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
     for r in rules:
         applies_to_cautious = not r["stages"] or bool(set(r["stages"]) & cautious_ids)
         if applies_to_cautious:
-            hits = find_phrases(str(r["sentence"]), stages["assertive_words"], stages["assertive_allowed"])
+            all_sentences = " ".join([str(r["sentence"])] + [str(((r["direction"] or {}).get(d) or {}).get("sentence", ""))
+                                                          for d in DIRECTION_KEYS])
+            hits = find_phrases(all_sentences, stages["assertive_words"], stages["assertive_allowed"])
             if hits:
                 warnings.append(f"bridges.yaml 규칙 {r['id']} sentence: 계획 단계에도 쓰이는 문장인데 단정 표현 {hits} 이 있습니다")
 
@@ -436,5 +481,7 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
         scoring=scoring,
         stages=stages,
         regions=regions,
+        directions=directions,
+        packet=raw["packet"],
         warnings=warnings,
     )

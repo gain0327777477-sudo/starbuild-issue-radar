@@ -57,7 +57,8 @@ def _issue_from_cluster(members: list[Article], cls: dict, tagger: RegionTagger,
     tags = [{"sido": s, "area": ar} for (s, ar), _ in region_counts.most_common(3)]
 
     stage = detect_stage(text, fields, cfg)
-    br = bridge_mod.connect(fields, text, stage, tags, region_label(tags), cfg)
+    br = bridge_mod.connect(fields, text, stage, tags, region_label(tags), cfg,
+                            rep_title=rep.title, other_titles=[a.title for a in recent if a is not rep])
     f = cfg.fields.get(primary)
     return {
         "id": rep.id,

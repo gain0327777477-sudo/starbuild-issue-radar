@@ -23,14 +23,20 @@ def written_match(issue: dict, posts: list[dict], now: datetime, days: int) -> d
 
 
 def pick_today(issues: list[dict], cfg) -> list[dict]:
-    """scoring.yaml 의 recommend.slots 순서대로 1개씩. 블로그에 최근 쓴 주제·연결 약함은 제외."""
+    """scoring.yaml 의 recommend.slots 순서대로 1개씩.
+    제외: 블로그에 최근 쓴 주제, 연결 약함, 인물·인사 기사(exclude_people).
+    rank_by: attract 인 칸(집객형)은 집객 점수 순, 나머지는 총점 순."""
+    rec = cfg.scoring["recommend"]
     picked, used = [], set()
-    ranked = sorted(issues, key=lambda i: i["scores"]["total"], reverse=True)
-    for slot in cfg.scoring["recommend"]["slots"]:
+    for slot in rec["slots"]:
+        key = "attract" if slot.get("rank_by") == "attract" else "total"
+        ranked = sorted(issues, key=lambda i: (i["scores"][key], i["scores"]["total"]), reverse=True)
         choice = None
         for group in (slot.get("fields") or [], slot.get("backup_fields") or []):
             for i in ranked:
                 if i["id"] in used or i.get("written") or i["bridge"]["strength"] == "약함":
+                    continue
+                if rec.get("exclude_people") and i.get("people"):
                     continue
                 if i["primary_field"] in group:
                     choice = i
@@ -39,6 +45,6 @@ def pick_today(issues: list[dict], cfg) -> list[dict]:
                 break
         if choice:
             used.add(choice["id"])
-            picked.append({"slot": slot["name"], "issue_id": choice["id"],
+            picked.append({"slot": slot["name"], "issue_id": choice["id"], "ranked_by": "집객 점수" if key == "attract" else "총점",
                            "from_backup": choice["primary_field"] not in (slot.get("fields") or [])})
     return picked
