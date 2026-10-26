@@ -15,6 +15,7 @@ attract:
   public_interest_fields: [stock, macro, asset, rate]   # 대중 관심 분야
   public_interest_bonus: 3
   briefing_bonus: 1            # 정부 보도자료가 같이 묶여 있으면(정책 신뢰도)
+  # 진행 단계 가산(착공·개통 등)은 stages.yaml 의 points 에서 조절합니다
   ad_penalty_strong: -10
   ad_penalty_soft: -3
   stars:                       # 집객 ★ 기준 (이 점수 이상)
@@ -41,8 +42,8 @@ recommend:
       fields: [rate, lodging]
       backup_fields: [commercial, policy, rental, etc]
     - name: 지역·개발형
-      fields: [region]
-      backup_fields: [auction, policy]
+      fields: [region, transport, corp]
+      backup_fields: [national, auction, policy]
   exclude_written_days: 7      # 최근 7일 안에 블로그에 쓴 주제와 겹치면 제외
 
 # 데이터 보관 기간
