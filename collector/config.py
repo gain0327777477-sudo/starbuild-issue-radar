@@ -131,12 +131,18 @@ def _nospace(s: str) -> str:
 
 
 def find_phrases(text: str, phrases: list[str], allowed: list[str] = ()) -> list[str]:
-    """띄어쓰기를 무시하고 text 안의 금지 표현을 찾는다. allowed 에 든 말은 먼저 지우고 찾는다."""
+    """text 안의 금지 표현을 찾는다. 금지 표현 안의 띄어쓰기는 있어도 없어도 찾음('대출 가능'→'대출가능'도).
+    단, 서로 다른 낱말을 이어 붙여 찾지는 않음('착공 포항' 안에서 '공포'를 찾지 않게).
+    allowed 에 든 말은 먼저 지우고 찾는다."""
     t = text
     for a in allowed:
-        t = t.replace(a, "")
-    t = _nospace(t)
-    return [p for p in phrases if _nospace(p) and _nospace(p) in t]
+        t = t.replace(a, " ")
+    hits = []
+    for p in phrases:
+        words = p.split()
+        if words and re.search(r"\s*".join(re.escape(w) for w in words), t):
+            hits.append(p)
+    return hits
 
 
 PHONE_RE = re.compile(r"(?<!\d)0\d{1,2}[-.)\s]\d{3,4}[-.\s]\d{4}(?!\d)|(?<!\d)01[016789]\d{7,8}(?!\d)")

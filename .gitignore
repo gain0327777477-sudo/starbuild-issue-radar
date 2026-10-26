@@ -11,6 +11,7 @@ __pycache__/
 
 # 로컬 수집 결과 (실제 데이터는 GitHub의 data 브랜치에만 저장)
 data/*.json
+data/packets/
 !data/sample_*.json
 
 # 기타

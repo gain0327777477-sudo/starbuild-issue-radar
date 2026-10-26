@@ -15,6 +15,7 @@ from .cluster import agency_map_from, cluster_articles
 from .config import Config
 from .filters import ad_words, exclusion_reason, foreign_business, people_words
 from .models import Article
+from .packet import build_packet
 from .recommend import pick_today, written_match
 from .scoring import score_issue
 from .sources import datalab
@@ -182,6 +183,17 @@ def run(cfg: Config, state: dict, now, data_dir, get=None) -> dict:
     save_json(data_dir / "today.json", {"updated_at": now.isoformat(), "picks": out["today"],
                                        "issues": [i for i in out["issues"] if i["id"] in {p["issue_id"] for p in out["today"]}]},
               compact=True)
+    # 4단계: 소재 패킷 — 이슈마다 작은 파일(data/packets/이슈id.json). 화면에서 카드를 열 때 그 하나만 받아 감
+    packets = {i["id"]: build_packet(i, cfg) for i in out["issues"]}
+    out["stats"]["packet_warnings"] = sum(1 for p in packets.values() if p["warnings"])
+    pdir = data_dir / "packets"
+    pdir.mkdir(parents=True, exist_ok=True)
+    for old in pdir.glob("*.json"):                 # 화면에서 빠진 이슈의 옛 패킷은 지움
+        if old.stem not in packets:
+            old.unlink()
+    for pid, p in packets.items():
+        save_json(pdir / f"{pid}.json", {"updated_at": now.isoformat(), **p}, compact=True)
+    out["packets"] = packets
     return out
 
 
