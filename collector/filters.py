@@ -62,7 +62,16 @@ def foreign_business(title: str, group: str, region_tags: list[dict], cfg: Confi
 
 
 def people_words(title: str, cfg: Config) -> list[str]:
-    return [w for w in cfg.filters.get("people_words") or [] if w in title]
+    """인물·인사 기사로 볼 낱말. 비어 있으면 인물 기사가 아님(또는 정책 기사로 인정).
+    - 별세·부고·동정(people_words_strict): 항상 인물 기사
+    - 임명·취임 등(people_words): 제목에 정책 단어(대책·금리·규제·공급·세제·대출)가 있으면 정책 기사로 봄"""
+    strict = [w for w in cfg.filters.get("people_words_strict") or [] if w in title]
+    if strict:
+        return strict
+    hits = [w for w in cfg.filters.get("people_words") or [] if w in title]
+    if hits and any(w in title for w in cfg.filters.get("people_policy_words") or []):
+        return []
+    return hits
 
 
 def ad_words(title: str, cfg: Config) -> tuple[str, list[str]] | None:

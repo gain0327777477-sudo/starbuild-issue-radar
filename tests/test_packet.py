@@ -133,3 +133,57 @@ def test_all_real_packets_pass_checks(cfg):
     bad = [(i["title"], w) for i in issues for w in build_packet(i, cfg)["warnings"]]
     assert bad == []
     assert all(len(build_packet(i, cfg)["titles"]) == 3 for i in issues[:100])
+
+
+# ── 4단계 보완 (2026-10-26 검토) ───────────────────
+
+from collector import bridge
+from collector.filters import people_words
+from collector.packet import clean_headline
+
+
+@pytest.mark.parametrize("title, excluded", [
+    ("[프로필] 최창호 한국은행 통화정책·시장 담당 부총재보", True),
+    ("신임 국토부 장관 취임…공급 대책 속도 낸다", False),        # 정책 단어(공급·대책) → 정책 기사
+    ("금융위원장 내정자 \"가계대출 규제 유지\"", False),           # 대출·규제
+    ("[부고] 홍길동씨 별세", True),
+    ("전 한은 총재 별세…금리 정책 이끈 인물", True),              # 별세·부고·동정은 정책 단어가 있어도 제외
+])
+def test_people_exception_for_policy_words(cfg, title, excluded):
+    assert bool(people_words(title, cfg)) is excluded
+
+
+def test_single_stock_issue_uses_money_flow_angle(cfg, monkeypatch):
+    monkeypatch.delenv("NAVER_CLIENT_ID", raising=False)
+    issue, p = packet_for(cfg, ["SK하이닉스 키옥시아 차익 16조원 특별배당, 확정된 바 없어",
+                                "SK하이닉스 \"16조 특별배당 미확정\"…28일 주주환원 방안 발표"], "stock")
+    br = issue["bridge"]
+    assert br["rule_id"] == "single_stock" and br["cta"] == "soft"
+    assert br["single_stock"] == {"company": "SK하이닉스", "event": "특별배당"}
+    assert p["question"] == "SK하이닉스 특별배당 이후, 이 돈은 어디로 움직일까?"
+    assert p["titles"][0] == "SK하이닉스 특별배당, 목돈은 어디로 움직일까?"
+    assert "주가·실적 전망은 쓰지 말고, 이 돈이 어디로 움직일 수 있는지와 수익형 부동산 관점만 쓸 것" in p["request_prompt"]
+    assert any("투자 권유가 아닙니다" in m for m in p["mandatory"])
+    assert p["cta_text"].startswith("이런 경제 흐름이")
+
+
+def test_market_issue_without_company_is_not_single_stock(cfg):
+    assert bridge.single_stock_match("코스피 5500선 붕괴…7개월 만에 최저", ["stock"], cfg) is None
+    assert bridge.single_stock_match("삼성전자 배당 확대", ["rate"], cfg) is None      # 증시·경제 분야가 아니면 아님
+
+
+def test_titles_are_not_keyword_plus_original_headline(cfg, monkeypatch):
+    monkeypatch.delenv("NAVER_CLIENT_ID", raising=False)
+    issue, p = packet_for(cfg, ["충북도, 중부·경부선 고속도로 확장 서명운동 12월 말까지 연장",
+                                "충북도 고속도로 확장 서명운동 연말까지 연장"], "transport")
+    gist = clean_headline(issue["title"])
+    assert all(gist not in t for t in p["titles"])
+    kinds = ["어떤 영향" in p["titles"][0] or "?" in p["titles"][0], "정리" in p["titles"][1] or "쉽게" in p["titles"][1],
+             "확인할" in p["titles"][2]]
+    assert all(kinds), p["titles"]                                                   # 질문형·설명형·확인형
+
+
+def test_no_doubled_action_words_in_titles(cfg, monkeypatch):
+    monkeypatch.delenv("NAVER_CLIENT_ID", raising=False)
+    _, p = packet_for(cfg, ["아산 배방 진입도로 개설 개통…주민 편의 개선", "아산 배방 진입도로 개설 완료 개통"], "transport")
+    assert not any("개설 개통" in t for t in p["titles"]), p["titles"]

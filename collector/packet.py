@@ -104,48 +104,79 @@ def build_packet(issue: dict, cfg: Config) -> dict:
     cautious = bool(stage.get("cautious"))
     field = cfg.fields.get(issue["primary_field"])
 
-    keyword = (issue.get("core_keywords") or [None])[0] or (field.keywords[0].query if field else issue["field_name"])
+    # 핵심 키워드: '착공·준공' 같은 일반 낱말보다 구체적인 키워드(GTX·재건축 등)를 먼저
+    generic = set(pc.get("generic_keywords") or [])
+    core = issue.get("core_keywords") or []
+    keyword = next((k for k in core if k not in generic), core[0] if core else None) \
+        or (field.keywords[0].query if field else issue["field_name"])
     place = region_label(issue.get("region_tags") or [])
     suffix = ""
     if direction and direction.get("id") not in (None, "unclear"):
         suffix = ((cfg.directions.get("title_suffix") or {}).get(direction["topic"]) or {}).get(direction["id"], "")
     elif stage and not cautious:
         suffix = stage["name"]
+        # '도로 개설'·'공장 증설'처럼 키워드에 이미 동작 말이 있으면 '개통' 등을 덧붙이지 않음
+        stage_like = [w for g in ("development", "transport") for s in cfg.stages[g]["stages"] for w in s["words"]]
+        if any(w in keyword for w in stage_like + list(pc.get("action_words") or [])):
+            suffix = ""
     kw_full = f"{keyword} {suffix}".strip() if suffix and suffix not in keyword else keyword
 
     category = br["categories"][0]
     cq = (pc.get("category_questions") or {}).get(category) or pc["category_questions"]["뉴스"]
-    question = _fill(cq["question"], kw_full, place)
+    single = br.get("single_stock")              # 개별 종목 → 자금 흐름 각도
+    ssc = pc.get("single_stock") or {}
+    if single and ssc:
+        question = ssc["question"].replace("{회사}", single["company"]).replace("{사건}", single["event"])
+    else:
+        question = _fill(cq["question"], kw_full, place)
 
     # 확인할 것
     checklist = []
-    for item in (pc.get("checklist") or {}).get(category, []) + (pc.get("checklist_by_stage") or {}).get(stage.get("id", ""), []) \
+    base_items = ssc.get("checklist", []) if single and ssc else (pc.get("checklist") or {}).get(category, [])
+    for item in base_items + (pc.get("checklist_by_stage") or {}).get(stage.get("id", ""), []) \
             + (pc.get("checklist_by_polarity") or {}).get(br.get("polarity", ""), []):
         item = _fill(item, keyword, place).strip()
         if item and item not in checklist:
             checklist.append(item)
     checklist = checklist[:6]
 
-    # 제목 후보: 키워드 먼저, 30자 안팎, 금지 표현이 섞인 후보는 버림
+    # 제목 후보: 질문형·설명형·확인형 틀에서 하나씩 (키워드를 원래 기사 제목 앞에 억지로 붙이지 않음)
     tconf = pc.get("title") or {}
     max_c, min_c = tconf.get("max_chars", 32), tconf.get("min_chars", 12)
-    gist = clean_headline(issue["title"])
-    lead = f"{place} {kw_full}" if place and place not in kw_full else kw_full
-    candidates = [
-        f"{kw_full}, {cq['short']}?",
-        gist if keyword.replace(" ", "") in gist.replace(" ", "")[:12] else f"{keyword}, {gist}",
-        f"{lead} 정리, 확인할 것 {len(checklist)}가지" if checklist else f"{lead} 정리",
-        f"{lead}, {cq.get('view') or category} 관점에서 보면",
-        f"{kw_full} 소식, 무엇이 달라지나",
-    ]
-    titles = []
-    for c in candidates:
-        c = fit(c, max_c)
-        if len(c) < min_c or c in titles or guard([c], cfg, cautious):
-            continue
-        titles.append(c)
-        if len(titles) == 3:
+
+    def fill_title(t: str) -> str:
+        values = {"{키워드}": kw_full, "{지역}": f"{place} " if place and place not in kw_full else "",
+                  "{명사}": cq.get("noun") or category, "{짧은질문}": cq.get("short", "무엇이 달라지나"),
+                  "{개수}": str(len(checklist))}
+        if single:
+            values.update({"{회사}": single["company"], "{사건}": single["event"]})
+        for k, v in values.items():
+            t = t.replace(k, v)
+        return re.sub(r"\s+", " ", t).strip()
+
+    def usable(t: str) -> bool:
+        return min_c <= len(t) <= max_c and not guard([t], cfg, cautious)
+
+    if single and ssc.get("title_templates"):
+        groups = [[t] for t in ssc["title_templates"]]
+    else:
+        groups = [tconf.get("question_templates") or [], tconf.get("explain_templates") or [], tconf.get("check_templates") or []]
+    titles: list[str] = []
+    for group in groups:
+        for tpl in group:
+            if "{개수}" in tpl and not checklist:
+                continue
+            t = fill_title(tpl)
+            if usable(t) and t not in titles:
+                titles.append(t)
+                break
+    for tpl in [t for g in groups for t in g]:               # 한 묶음이 모두 안 맞으면 다른 틀로 채움
+        if len(titles) >= 3:
             break
+        t = fit(fill_title(tpl), max_c)
+        if usable(t) and t not in titles:
+            titles.append(t)
+    titles = titles[:3]
 
     # 핵심 키워드 5~7개
     kws: list[str] = []
@@ -230,6 +261,7 @@ def build_packet(issue: dict, cfg: Config) -> dict:
         "sources": sources,
         "is_investment": is_investment,
         "cautious": cautious,
+        "single_stock": single,
     }
     generated = titles + [question, br["sentence"], br["logic"], body] + mandatory + [o["guide"] for o in outline if o["heading"] != "무슨 일"]
     packet["warnings"] = guard(generated, cfg, cautious)
@@ -301,6 +333,8 @@ def to_request_prompt(issue: dict, p: dict, cfg: Config) -> str:
         L.append("· 계획·예정 단계이므로 '~할 계획이다', '~할 수 있다', '~가 추진된다'처럼 씁니다.")
     if p["is_investment"]:
         L.append("· 개별 종목의 매수·매도 추천, 수익 보장 표현은 쓰지 않습니다. 시장 흐름 해설과 부동산·실물자산 관점 연결만 씁니다.")
+    if p.get("single_stock"):
+        L.append(f"· {(cfg.packet.get('single_stock') or {}).get('instruction', '')}")
     if issue["bridge"].get("polarity") in ("악재", "양면"):
         L.append("· 좋지 않은 소식이라도 불안을 키우는 표현 대신 '확인할 것' 중심으로 차분하게 씁니다.")
     L += ["", "[출처] 글 끝에 아래처럼 적습니다"] + [f"· {s['press']}, {s['date']}" for s in p["sources"]]

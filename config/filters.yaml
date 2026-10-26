@@ -98,21 +98,26 @@ foreign_words_business:
 # (예: '경기경제청, 유럽 첨단기업 투자유치')
 foreign_business_keep: [유치, 국내 진출, 한국 진출, 국내]
 
-# 인물·인사 기사 — 제외하지 않고 감점 (블로그 소재로 약함). scoring.yaml 의 people_penalty
+# 인물·인사 기사 — 제외하지 않고 감점, 오늘 추천에서는 제외 (scoring.yaml 의 people_penalty)
+#  people_words        : 인사 기사. 단, 제목에 people_policy_words(정책 단어)가 함께 있으면 정책 기사로 보고 감점·추천 제외 안 함
+#                        예) "국토부 장관 취임…공급 대책 속도" → 정책 기사
+#  people_words_strict : 별세·부고·동정 — 정책 단어가 있어도 그대로 감점·추천 제외
 people_words:
   - "[프로필]"
   - "[인사]"
   - "(인사)"
   - 오늘의 인사
-  - "[부고]"
-  - 부고
-  - 별세
-  - "[동정]"
   - 부총재보
   - 임명
   - 선임
   - 취임
   - 내정
+people_words_strict:
+  - "[부고]"
+  - 부고
+  - 별세
+  - "[동정]"            # 맨 '동정'은 '인구이동정보' 같은 말에 섞여서 넣지 않음
+people_policy_words: [대책, 금리, 규제, 공급, 세제, 대출]
 
 # 기사가 아닌 페이지 제외 — 지자체 사이트 검색에 섞이는 메뉴·목록·채용 페이지 (제목에 있으면 제외)
 junk_titles:

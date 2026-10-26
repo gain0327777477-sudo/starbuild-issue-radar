@@ -58,11 +58,33 @@ def apply_direction(rule: dict, rep_title: str, other_titles: list[str], cfg: Co
     return d, block
 
 
+def single_stock_match(rep_title: str, fields: list[str], cfg: Config) -> dict | None:
+    """증시·경제 분야인데 제목에 회사 이름 + 배당·실적·주가 단어 → {'company': …, 'event': …}"""
+    ss = cfg.single_stock
+    if not ss or not fields or not (fields[0] in cfg.soft_cta_fields or "stock" in fields):
+        return None
+    companies = list(ss["companies"])
+    for co in (cfg.company_combos or {}).get("companies", []):
+        companies += co.terms
+    company = next((c for c in sorted(set(companies), key=len, reverse=True) if contains(rep_title, c)), None)
+    event = next((w for w in sorted(ss["words"], key=len, reverse=True) if w in rep_title), None)
+    return {"company": company, "event": event} if company and event else None
+
+
 def connect(fields: list[str], text: str, stage: dict | None, region_tags: list[dict], place: str, cfg: Config,
             rep_title: str = "", other_titles: list[str] | None = None) -> dict:
     """fields: 이 이슈의 분야(주 분야 먼저). text: 묶인 기사 제목·요약. place: 연결 문장에 넣을 지역 이름.
     rep_title·other_titles: 방향 판정(환율·금리·증시·예금)에 쓰는 대표 제목과 다른 기사 제목."""
     primary_field = fields[0] if fields else ""
+
+    single = single_stock_match(rep_title, fields, cfg)
+    if single:                                  # 개별 종목 → '자금 흐름' 각도로 고정, 안내는 soft
+        ss = cfg.single_stock
+        return {
+            "rule_id": "single_stock", "strength": ss.get("strength", "간접"), "categories": list(ss["categories"]),
+            "other_categories": [], "logic": ss["logic"], "sentence": ss["sentence"], "cta": ss["cta"],
+            "polarity": "", "direction": None, "notices": [], "tourist_bonus": 0, "single_stock": single,
+        }
     matched = [(i, r) for i, r in enumerate(cfg.rules) if _matches(r, fields, text, stage)]
     # 주 분야 규칙 먼저 → 요약에 '한은'이 스쳐 지나간 환율 기사가 '대출 판단(직접)'으로 끌려가지 않게
     matched.sort(key=lambda ir: (primary_field not in ir[1]["fields"], STRENGTH_RANK[ir[1]["strength"]], ir[0]))

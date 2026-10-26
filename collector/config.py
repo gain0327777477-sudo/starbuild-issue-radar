@@ -59,6 +59,7 @@ class Config:
     cta_templates: dict[str, str]
     office_footer: str
     soft_cta_fields: list[str]
+    single_stock: dict
     sources: dict
     filters: dict
     scoring: dict
@@ -382,6 +383,18 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
                 problems.append(f"{where}: direction 에 알 수 없는 항목 {sorted(extra)}")
         r["direction"] = dconf or None
 
+    single = bridges.get("single_stock") or {}
+    if single:
+        for key in ("words", "logic", "sentence", "categories", "cta"):
+            if not single.get(key):
+                problems.append(f"bridges.yaml의 single_stock: {key} 가 비어 있습니다")
+        for cat in single.get("categories") or []:
+            if cat not in names:
+                problems.append(f"bridges.yaml의 single_stock: 카테고리 '{cat}' 가 blog_categories.yaml 에 없습니다")
+        if single.get("cta") and single["cta"] not in templates:
+            problems.append(f"bridges.yaml의 single_stock: cta '{single['cta']}' 문구가 없습니다")
+        single["companies"] = [str(c) for c in single.get("companies") or []]
+        single["words"] = [str(w) for w in single.get("words") or []]
     soft_fields = [str(f) for f in bridges.get("soft_cta_fields") or []]
     for fid in soft_fields:
         if fid not in fields:
@@ -437,6 +450,8 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
     fear = filters.get("fear_phrases") or []
     texts = [(f"cta_templates.{k}", str(v)) for k, v in templates.items()]
     texts.append(("office_footer", str(bridges.get("office_footer") or "")))
+    if single:
+        texts += [("single_stock logic", str(single["logic"])), ("single_stock sentence", str(single["sentence"]))]
     for r in rules:
         texts += [(f"규칙 {r['id']} logic", str(r["logic"])), (f"규칙 {r['id']} sentence", str(r["sentence"])),
                   (f"규칙 {r['id']} notice", r["notice"])]
@@ -482,6 +497,7 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
         cta_templates={k: str(v).strip() for k, v in templates.items()},
         office_footer=str(bridges.get("office_footer") or ""),
         soft_cta_fields=soft_fields,
+        single_stock=single,
         sources=sources,
         filters=filters,
         scoring=scoring,
