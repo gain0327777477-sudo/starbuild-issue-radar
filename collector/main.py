@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 import time
 import traceback
@@ -49,6 +50,19 @@ def run_source(module, ctx: Context) -> tuple[dict, object]:
         last_ok[module.ID] = ctx.now.isoformat()
     report["last_success"] = last_ok.get(module.ID, "")
     return report, result
+
+
+def run_info(started) -> dict:
+    """어떻게 실행됐는지 — 반영 지연(예약 시각 → 화면) 측정용.
+    예약 실행(schedule)이면 예약 시각 = 시작 시각을 30분 단위로 내린 값 (cron '*/30')."""
+    event = os.environ.get("RADAR_RUN_EVENT", "local")
+    info = {"event": event, "run_id": os.environ.get("RADAR_RUN_ID", ""), "started_at": started.isoformat(),
+            "finished_at": now_kst().isoformat()}
+    if event == "schedule":
+        slot = started.replace(minute=started.minute - started.minute % 30, second=0)
+        info["scheduled_slot"] = slot.isoformat()
+        info["start_delay_min"] = round((started - slot).total_seconds() / 60, 1)
+    return info
 
 
 def main() -> int:
@@ -101,6 +115,7 @@ def main() -> int:
     failed = [r for r in reports if r["status"] in ("failed", "partial")]
     save_json(DATA_DIR / "status.json", {
         "collected_at": now.isoformat(),
+        "run": run_info(now),
         "has_naver_keys": has_naver_keys(),
         "new_articles": len(new_articles),
         "total_articles": len(articles),

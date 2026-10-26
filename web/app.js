@@ -130,6 +130,10 @@
       for (const i of state.today.issues || []) if (!state.byId.has(i.id)) state.byId.set(i.id, i);
     }
     state.loadedAt = Date.now();
+    try {                                         // 배포 버전·시각 (설정 화면 표시, 반영 지연 확인용)
+      const v = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
+      state.version = v.ok ? await v.json() : null;
+    } catch { state.version = null; }
     fillRegions();
     render();
   }
@@ -491,8 +495,12 @@
     const st = state.status;
     if (!st) return [h("p", { class: "note", text: "수집 상태를 불러오지 못했습니다." })];
     const label = { ok: "정상", partial: "일부 실패", skipped: "건너뜀", failed: "실패" };
+    const run = st.run || {};
     return [
       h("p", { text: `마지막 수집 ${clock(st.collected_at)} (${ago(st.collected_at)})` }),
+      run.scheduled_slot ? h("p", { class: "note",
+        text: `예약 ${clock(run.scheduled_slot)} → 실제 시작 ${clock(run.started_at)} (${run.start_delay_min}분 늦게) → 수집 끝 ${clock(run.finished_at)}` }) : null,
+      state.version ? h("p", { class: "note", text: `화면 배포 ${clock(state.version.built_at)} · 버전 ${state.version.version}` }) : null,
       h("ul", {}, (st.sources || []).map((s) => h("li", {},
         h("b", { text: `${s.name}: ${label[s.status] || s.status}` }),
         ` · ${s.count}건`, s.message ? h("div", { class: "note", text: s.message }) : null,

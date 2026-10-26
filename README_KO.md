@@ -3,8 +3,8 @@
 경제·주식·금리·부동산·개발 이슈를 모아서 **블로그 글감(소재 패킷)** 으로 만들어 주는 핸드폰용 웹앱입니다.
 이슈마다 "사람들이 지금 찾는가(집객)"와 "내 블로그 카테고리로 이어지는가(사업 연결)"를 점수로 매겨 보여줍니다.
 
-> 이 문서는 단계마다 채워 갑니다. 지금은 **5단계(핸드폰 화면)까지** 끝난 상태입니다.
-> GitHub 자동 수집·키 등록·홈 화면 설치는 6단계에서 추가됩니다.
+> 이 문서는 단계마다 채워 갑니다. 지금은 **6단계(GitHub 업로드·자동 수집) 준비**까지 끝난 상태입니다.
+> GitHub 가입부터 홈 화면 설치까지는 아래 6~7장을 순서대로 따라 하세요.
 
 ---
 
@@ -122,9 +122,158 @@ python -m venv .venv
 
 ---
 
-## 6. (6단계에서 채움)
+## 6. GitHub에 올리기 (처음 한 번)
 
-- GitHub 저장소 만들기·업로드, 30분 자동 수집, GitHub Pages(HTTPS) 주소
-- 네이버 검색·데이터랩 키 등록 (GitHub Secrets)
-- 핸드폰 홈 화면에 추가하기
-- 수집이 멈췄을 때 다시 켜는 법
+> GitHub 화면은 영어이고, 가끔 버튼 위치가 조금 바뀝니다. 아래 **굵은 글씨**가 화면에 보이는 버튼·글자입니다.
+> 막히면 그 화면을 캡처해서 Claude 에게 보여 주세요.
+
+### 6-1. GitHub 가입
+
+1. PC 크롬에서 **https://github.com/signup** 을 엽니다.
+2. **Enter your email** 칸 → 쓰실 이메일 입력 → **Continue**
+3. **Create a password** 칸 → 비밀번호(15자 이상, 또는 8자 이상 + 숫자 + 영문 소문자) → **Continue**
+4. **Enter a username** 칸 → 영문 아이디 입력 → **Continue**
+   - 이 아이디가 화면 주소에 들어갑니다: `https://아이디.github.io/…` (예: `starbuild-yantai`)
+5. **Email preferences** → 체크하지 않아도 됩니다 → **Continue**
+6. 사람 확인 퍼즐 → 직접 풉니다 (**Verify**)
+7. 메일함에 온 **8자리 코드**를 **Enter code** 칸에 입력
+8. 처음 질문 화면(팀 규모 등)이 나오면 아래쪽 **Skip personalization** → 요금제는 **Free**
+
+### 6-2. 2단계 인증 켜기 (필수)
+
+GitHub 는 코드를 올리는 계정에 2단계 인증을 요구합니다.
+
+1. 핸드폰에 인증 앱 설치: **Google Authenticator** 또는 **Microsoft Authenticator** (플레이스토어)
+2. PC GitHub 오른쪽 위 **동그란 프로필 그림** → **Settings**
+3. 왼쪽 메뉴 **Password and authentication**
+4. **Two-factor authentication** 칸의 **Enable two-factor authentication**
+5. 화면에 **QR 코드**가 나오면 → 핸드폰 인증 앱에서 **+ (추가)** → **QR 코드 스캔** → PC 화면의 QR 을 비춤
+6. 인증 앱에 나온 **6자리 숫자**를 PC 의 **Verify the code from the app** 칸에 입력 → **Continue**
+7. **Save your recovery codes** 화면 → **Download** → 파일을 안전한 곳(USB·출력)에 보관 → **I have saved my recovery codes**
+   - ⚠ 핸드폰을 잃어버렸을 때 계정에 들어갈 **유일한 방법**입니다.
+8. **Done** 이 나오면 완료
+
+### 6-3. 이메일 비공개 + noreply 주소 확인
+
+공개 저장소에는 커밋 작성자 이메일이 남습니다. 개인 메일 대신 GitHub 가 주는 **noreply 주소**를 씁니다.
+
+1. **Settings** → 왼쪽 **Emails**
+2. **Keep my email addresses private** 체크
+3. 그 바로 아래 설명에 나오는 `숫자+아이디@users.noreply.github.com` 주소를 확인
+4. (권장) **Block command line pushes that expose my email** 도 체크
+5. 이 **noreply 주소와 아이디**를 Claude 에게 알려 주세요 (비밀번호 아님, 알려 줘도 안전)
+
+### 6-4. 저장소 만들기
+
+1. 오른쪽 위 **+** → **New repository**
+2. **Repository name**: `starbuild-issue-radar` (원하는 영문 이름)
+3. **Public** 선택 (무료로 화면을 올리고 자동 수집을 돌리려면 공개여야 합니다 — 키는 Secrets 에 따로 숨김)
+4. **Add a README file**, **.gitignore**, **license** 는 모두 **선택하지 않음** (이미 이 폴더에 있음)
+5. **Create repository**
+6. 화면 맨 위 주소 `https://github.com/아이디/starbuild-issue-radar` 를 Claude 에게 알려 주세요
+
+### 6-5. 업로드 (Claude 가 실행, 로그인만 대표님이)
+
+Claude 가 업로드 명령을 실행하면 **"Connect to GitHub"** 창(또는 브라우저)이 뜹니다.
+**Sign in with your browser** → 브라우저에서 GitHub 로그인 → 인증 앱 6자리 → **Authorize git-ecosystem** 을 누르면 끝입니다.
+비밀번호는 대표님이 직접 입력하고, Claude 에게 알려 줄 필요가 없습니다.
+
+### 6-6. GitHub Pages(HTTPS 화면 주소) 켜기
+
+1. 저장소 화면 위쪽 **Settings** (톱니바퀴)
+2. 왼쪽 메뉴 **Pages**
+3. **Build and deployment** → **Source** 를 **GitHub Actions** 로 선택 (저장 버튼 없음, 고르면 끝)
+
+### 6-7. 첫 실행
+
+1. 저장소 위쪽 **Actions** 탭
+2. "Workflows aren't being run on this repository" 같은 노란 안내가 있으면 **I understand my workflows, go ahead and enable them**
+3. 왼쪽 **수집·배포** → 오른쪽 **Run workflow** → 초록 **Run workflow**
+4. 2~3분 뒤 초록 체크(✓)가 되면 성공. 화면 주소: **`https://아이디.github.io/starbuild-issue-radar/`**
+5. 그다음부터는 30분마다 저절로 돕니다.
+
+### 6-8. 네이버 키 발급 (검색 + 데이터랩)
+
+1. PC 에서 **https://developers.naver.com** → 오른쪽 위 **로그인** (네이버 아이디)
+2. 위 메뉴 **Application** → **애플리케이션 등록**
+   - 처음이면 **이용약관 동의** → **계정 정보 등록**(휴대폰 인증)이 먼저 나옵니다.
+3. **애플리케이션 이름**: `스타빌드 이슈레이더`
+4. **사용 API**: 목록에서 **검색** 선택 → **+ 추가** → 목록에서 **데이터랩 (검색어트렌드)** 선택
+5. **비로그인 오픈 API 서비스 환경**: **환경 추가** → **WEB 설정** → **웹 서비스 URL**: `https://아이디.github.io`
+6. **등록하기**
+7. **내 애플리케이션** → 방금 만든 앱 → **Client ID** 와 **Client Secret**(**보기** 클릭) 확인
+   - ⚠ 이 두 값은 **채팅에 붙여 넣지 말고** 바로 아래 6-9 에 직접 넣으세요.
+
+### 6-9. 네이버 키를 GitHub Secrets 에 넣기
+
+1. 저장소 **Settings** → 왼쪽 **Secrets and variables** → **Actions**
+2. **New repository secret**
+   - **Name**: `NAVER_CLIENT_ID` / **Secret**: 네이버 Client ID 붙여넣기 → **Add secret**
+3. 다시 **New repository secret**
+   - **Name**: `NAVER_CLIENT_SECRET` / **Secret**: 네이버 Client Secret 붙여넣기 → **Add secret**
+4. **Actions** 탭 → **수집·배포** → **Run workflow** 로 한 번 실행
+5. 화면 **설정 → 수집 상태**에서 **네이버 뉴스: 정상**, **검색 추이(데이터랩): 정상** 확인
+
+> 이 PC 에서 키로 시험하려면: 폴더의 `.env.example` 을 복사해 이름을 `.env` 로 바꾸고 메모장으로 열어 `=` 뒤에 붙여 넣으세요.
+> `.env` 는 업로드되지 않습니다(.gitignore).
+
+---
+
+## 7. 핸드폰 홈 화면에 설치하고 확인하기 (크롬 · 삼성 인터넷)
+
+> ⚠ **카카오톡·네이버 앱 안에서 열면 설치가 안 됩니다.**
+> 카톡이나 네이버 앱에서 링크를 누르면 그 앱 '안의' 브라우저로 열리는데, 거기서는 홈 화면 설치·공유가 막혀 있습니다.
+> 주소를 복사해서 **크롬** 또는 **삼성 인터넷** 앱을 직접 열고 주소창에 붙여 넣으세요.
+> (카카오톡에서 이미 열었다면: 오른쪽 위 **⋮** → **다른 브라우저로 열기**)
+
+### 크롬에서 설치
+
+1. 크롬 앱 주소창에 `https://아이디.github.io/starbuild-issue-radar/` → 열기
+2. 아래쪽에 **앱 설치** 배너가 뜨면 **설치**
+   - 안 뜨면 오른쪽 위 **⋮** → **홈 화면에 추가** → **설치**
+3. 홈 화면에 레이더 모양 **이슈레이더** 아이콘이 생겼는지 확인
+
+### 삼성 인터넷에서 설치
+
+1. 삼성 인터넷 앱 주소창에 같은 주소 → 열기
+2. 주소창 오른쪽의 **아래 화살표(설치) 아이콘** → **설치**
+   - 아이콘이 없으면 아래쪽 **≡ (메뉴)** → **현재 페이지 추가** → **홈 화면**
+3. 홈 화면 아이콘 확인
+
+### 두 브라우저에서 각각 확인할 것
+
+| # | 확인 | 이렇게 하면 됩니다 | 기대 결과 |
+|---|---|---|---|
+| 1 | HTTPS | 앱을 연다 | 파란 '미리 보기(HTTP) 모드' 안내가 **안** 뜸 |
+| 2 | 앱처럼 열림 | 홈 화면 아이콘으로 연다 | 주소창 없이 전체 화면 |
+| 3 | 오프라인 | 앱을 한 번 열어 목록을 본 뒤 → **비행기 모드** 켜기 → 앱을 완전히 닫고(최근 앱에서 밀어 끄기) 다시 열기 | 노란 **오프라인 · 저장된 데이터** + 목록이 보임, 저장함의 소재도 열림 |
+| 4 | 공유 | 비행기 모드 끄기 → 카드 **소재로 저장** → **③ 공유** | 공유 창이 뜸 → **Claude** 선택 시 요청문이 입력칸에 들어감 / **카카오톡** → 나와의 채팅으로 보내짐 |
+| 5 | 복사 | **① 네이버용 텍스트 복사** → 네이버 블로그 앱 글쓰기에 붙여넣기 / **② 원고 요청문 복사** → Claude 앱에 붙여넣기 | 그대로 붙여 넣어짐 |
+| 6 | 수집 | **설정 → 수집 상태** | 마지막 수집이 1시간 이내 |
+
+결과(되는 것 / 안 되는 것, 브라우저 이름)를 Claude 에게 알려 주시면 안 되는 부분을 고칩니다.
+
+---
+
+## 8. 수집이 멈췄을 때 (화면 위 빨간 "수집이 멈췄습니다")
+
+마지막 수집이 3시간을 넘으면 빨간 경고가 뜹니다. 가장 흔한 원인은 GitHub 의 **60일 자동 중지**입니다.
+(공개 저장소에 60일 동안 활동이 없으면 예약 실행을 멈춤 — 매 실행마다 '켜기'를 호출해 대비하고 있지만, GitHub 가 '활동'을 무엇으로 보는지 공개하지 않아 완전히 막을 수는 없습니다.)
+
+1. 저장소 → **Actions** 탭
+2. 노란 줄 **"This scheduled workflow is disabled …"** 가 보이면 **Enable workflow**
+   - 안 보이면 왼쪽 **수집·배포** → 오른쪽 **⋯** → **Enable workflow**
+3. **Run workflow** 로 바로 한 번 실행 → 2~3분 뒤 화면 새로고침
+4. 빨간 ✗(실패)가 계속되면: 실행 기록 클릭 → 빨간 단계를 열어 내용 확인, 또는 화면 **설정 → 수집 상태**의 원인
+   - "네이버 키 인증 실패" → 6-9 에서 키를 다시 넣기
+   - "구글이 요청을 막음" → 1시간 뒤 자동으로 다시 시도 (그동안 네이버·정책브리핑은 계속 수집)
+
+---
+
+## 9. 알아두기
+
+- **비용**: 공개 저장소라 자동 수집(GitHub Actions)과 화면 호스팅(GitHub Pages) 모두 무료입니다.
+- **공개되는 것**: 코드, 설정 파일(사무소 정보 포함 — 블로그에 공개하는 정보만 넣기), 수집한 뉴스 제목·링크(data 브랜치).
+- **공개되지 않는 것**: 네이버 키(Secrets), 저장함·앞으로의 성과 기록(핸드폰 안에만 저장).
+- **반영 시간**: 예약 시각(매시 정각·30분) → 화면 반영까지 걸리는 시간은 첫 자동 실행 후 실제로 재서 여기에 적습니다.
+  재는 방법: `.venv\Scripts\python.exe tools\measure_delay.py --repo 아이디/starbuild-issue-radar --site https://아이디.github.io/starbuild-issue-radar/`
