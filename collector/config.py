@@ -22,7 +22,7 @@ TABS = ("증시·경제", "금리·대출", "숙박·관광", "부동산·상권
 STRENGTHS = ("직접", "간접")
 POLARITIES = ("호재", "악재", "양면")
 SENTENCE_PLACEHOLDERS = {"지역"}
-OFFICE_KEYS = ("name", "representative", "registration_no", "address", "phone", "mobile", "kakao", "blog")
+OFFICE_KEYS = ("name", "short_name", "representative", "registration_no", "address", "phone", "mobile", "kakao", "blog")
 
 
 class ConfigError(Exception):
@@ -56,6 +56,7 @@ class Config:
     rules: list[dict]
     cta_templates: dict[str, str]
     office_footer: str
+    soft_cta_fields: list[str]
     sources: dict
     filters: dict
     scoring: dict
@@ -259,10 +260,26 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
             problems.append(f"regions.yaml의 {sido}: names 가 비어 있습니다")
             continue
         regions[sido] = {"names": [str(n) for n in r["names"]], "areas": [split_terms(a) for a in r.get("areas") or []]}
-    if len(regions) < 17:
-        warnings.append(f"regions.yaml: 시·도가 {len(regions)}개입니다 (보통 17개)")
+    combined = {}
+    for alias, sidos in (reg_raw.get("combined_aliases") or {}).items():
+        unknown = [s for s in sidos or [] if s not in regions]
+        if unknown or not sidos:
+            problems.append(f"regions.yaml의 combined_aliases '{alias}': 없는 시·도 {unknown}")
+        combined[str(alias)] = [str(s) for s in sidos or []]
+    known_places = set(regions)
+    for r in regions.values():
+        for terms in r["areas"]:
+            for t in terms:
+                known_places.add(t)
+                known_places.add(re.sub(r"[시군구]$", "", t))
+    tourist = [str(x) for x in reg_raw.get("tourist_areas") or []]
+    for t in tourist:
+        if t not in known_places:
+            problems.append(f"regions.yaml의 tourist_areas: '{t}' 는 시·도나 시·군·구 이름이 아닙니다")
     regions = {
         "regions": regions,
+        "combined_aliases": combined,
+        "tourist_areas": tourist,
         "require_full_name": [str(x) for x in reg_raw.get("require_full_name") or []],
         "ignore_phrases": [str(x) for x in reg_raw.get("ignore_phrases") or []],
     }
@@ -304,11 +321,29 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
             problems.append(f"{where}: 교통 인프라 규칙에는 polarity(호재/악재/양면)가 꼭 있어야 합니다")
         if r.get("cta") not in templates:
             problems.append(f"{where}: cta '{r.get('cta')}' 에 해당하는 문구가 cta_templates 에 없습니다")
+        r["cta_if_words"] = {str(k): [str(w) for w in v or []] for k, v in (r.get("cta_if_words") or {}).items()}
+        for k in r["cta_if_words"]:
+            if k not in templates:
+                problems.append(f"{where}: cta_if_words 의 '{k}' 에 해당하는 문구가 cta_templates 에 없습니다")
+        r["notice"] = str(r.get("notice") or "")
+        r["tourist_bonus"] = r.get("tourist_bonus") or 0
+        if not isinstance(r["tourist_bonus"], (int, float)):
+            problems.append(f"{where}: tourist_bonus 는 숫자여야 합니다")
         for key in ("logic", "sentence"):
             if not r.get(key):
                 problems.append(f"{where}: {key} 가 비어 있습니다")
         for ph in set(re.findall(r"\{([^}]*)\}", str(r.get("sentence") or ""))) - SENTENCE_PLACEHOLDERS:
             problems.append(f"{where}: sentence 의 {{{ph}}} 는 쓸 수 없는 자리표시입니다 ({{지역}} 만 가능)")
+
+    soft_fields = [str(f) for f in bridges.get("soft_cta_fields") or []]
+    for fid in soft_fields:
+        if fid not in fields:
+            problems.append(f"bridges.yaml의 soft_cta_fields: '{fid}' 는 없는 분야입니다")
+    if soft_fields and "soft" not in templates:
+        problems.append("bridges.yaml: soft_cta_fields 가 있으면 cta_templates 에 soft 문구가 있어야 합니다")
+    for k, v in list(templates.items()) + [("office_footer", bridges.get("office_footer") or "")]:
+        for ph in set(re.findall(r"\{([^}]*)\}", str(v))) - set(OFFICE_KEYS):
+            problems.append(f"bridges.yaml의 {k}: {{{ph}}} 는 office.yaml 에 없는 항목입니다")
 
     # sources.yaml
     sources = raw["sources"]
@@ -356,7 +391,8 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
     texts = [(f"cta_templates.{k}", str(v)) for k, v in templates.items()]
     texts.append(("office_footer", str(bridges.get("office_footer") or "")))
     for r in rules:
-        texts += [(f"규칙 {r['id']} logic", str(r["logic"])), (f"규칙 {r['id']} sentence", str(r["sentence"]))]
+        texts += [(f"규칙 {r['id']} logic", str(r["logic"])), (f"규칙 {r['id']} sentence", str(r["sentence"])),
+                  (f"규칙 {r['id']} notice", r["notice"])]
     for where, text in texts:
         clean = text
         for cat in names:          # '대출 가능·불가 판단' 같은 카테고리 이름 자체는 검사에서 뺌
@@ -391,6 +427,7 @@ def load_config(config_dir: Path = CONFIG_DIR, scan_root: Path | None = ROOT) ->
         rules=rules,
         cta_templates={k: str(v).strip() for k, v in templates.items()},
         office_footer=str(bridges.get("office_footer") or ""),
+        soft_cta_fields=soft_fields,
         sources=sources,
         filters=filters,
         scoring=scoring,

@@ -11,7 +11,11 @@ def test_real_config_loads_without_text_warnings():
     cfg = load_config()
     assert {"stock", "corp", "national", "transport"} <= set(cfg.fields)
     assert "대출 가능·불가 판단" in cfg.category_names
-    assert len(cfg.regions["regions"]) == 17
+    assert len(cfg.regions["regions"]) == 16          # 2026-07 전남광주통합특별시 출범으로 17 → 16
+    assert "전라남도" in cfg.regions["regions"]["전남광주"]["names"]
+    assert cfg.regions["combined_aliases"]["대구경북특별시"] == ["대구", "경북"]
+    assert "soft" in cfg.cta_templates and cfg.soft_cta_fields == ["stock", "macro", "asset"]
+    assert cfg.cta_templates["listing"].startswith("전국 모텔·호텔 매매 전문 {short_name}입니다.")
     bad = [w for w in cfg.warnings if "보장성" in w or "공포" in w or "단정" in w or "office.yaml 밖" in w]
     assert bad == []
 
@@ -74,6 +78,14 @@ def test_unknown_stage_in_rule_is_reported(tmp_path):
     with pytest.raises(ConfigError) as e:
         load_config(d, scan_root=None)
     assert any("opening" in msg for msg in e.value.problems)
+
+
+def test_unknown_placeholder_in_cta_is_reported(tmp_path):
+    d = _copy_config(tmp_path)
+    _replace(d / "bridges.yaml", "매매 전문 {short_name}입니다", "매매 전문 {상호}입니다")
+    with pytest.raises(ConfigError) as e:
+        load_config(d, scan_root=None)
+    assert any("{상호}" in msg and "office.yaml" in msg for msg in e.value.problems)
 
 
 def test_broken_yaml_reports_file_and_line(tmp_path):
