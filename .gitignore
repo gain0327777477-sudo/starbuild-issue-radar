@@ -19,3 +19,4 @@ data/packets/
 Thumbs.db
 .vscode/
 .idea/
+data/*.txt
