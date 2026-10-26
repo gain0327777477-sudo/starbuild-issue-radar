@@ -136,6 +136,22 @@
     } catch { state.version = null; }
     fillRegions();
     render();
+    pruneDataCache();
+  }
+
+  // 열어 본 패킷 저장본 중 목록에서 빠진 이슈의 것은 지움 (저장함에 넣은 소재는 남김)
+  // ※ 패킷은 '열어 본 것만' 저장됨 — 500여 개를 한꺼번에 받지 않음
+  async function pruneDataCache() {
+    if (!window.caches || state.offline || !state.issues.length) return;
+    try {
+      const keep = new Set(state.issues.map((i) => i.id));
+      for (const s of lsGet(LS.saved, [])) keep.add(s.id);
+      const c = await caches.open(DATA_CACHE);
+      for (const req of await c.keys()) {
+        const m = req.url.match(/\/packets\/([^/?]+)\.json$/);
+        if (m && !keep.has(decodeURIComponent(m[1]))) await c.delete(req);
+      }
+    } catch { /* 무시 */ }
   }
 
   // ── 위쪽 알림(경고·상태) ─────────────────────

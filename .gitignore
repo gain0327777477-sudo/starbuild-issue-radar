@@ -22,3 +22,9 @@ Thumbs.db
 data/*.txt
 .claude/
 _site/
+
+# 계정 보안 파일 — 절대 업로드 금지 (2026-10-27)
+github-recovery-codes*.txt
+*recovery-codes*
+*recovery_codes*
+noreply*.txt
