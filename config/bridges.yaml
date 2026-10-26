@@ -1,0 +1,178 @@
+# ─────────────────────────────────────────────
+# 사업 연결 규칙 — 이슈를 내 블로그 카테고리로 잇는 규칙 (대표님이 수정 가능)
+#
+# 규칙 읽는 법
+#  fields     : 이 분야(keywords.yaml의 영문 이름)의 이슈일 때
+#  words      : 그리고 제목·요약에 이 단어 중 하나가 있을 때 (비워두면 분야만 맞으면 적용)
+#  categories : 연결할 블로그 카테고리 (blog_categories.yaml 의 name 과 똑같이)
+#  strength   : 직접 / 간접   (어느 규칙에도 안 걸리면 자동으로 '연결 약함' → 추천 순위에서 내림)
+#  logic      : 왜 이어지는지 (화면에 '연결 논리'로 표시)
+#  sentence   : 글 중간에 넣을 연결 문장 예시
+#  cta        : 마무리 상담 안내 종류 — loan(대출 가능 여부) / listing(매물 접수) / remodel(리모델링 위탁)
+#
+# 한 이슈가 여러 규칙에 걸리면 더 강한 연결(직접 > 간접)이 우선이고, 같으면 위에 있는 규칙이 우선입니다.
+# 「추가 제안」 표시 규칙은 요청서에 없던 것을 제가 보탠 것입니다. 필요 없으면 지우세요.
+# ─────────────────────────────────────────────
+
+rules:
+  - id: rate_loan
+    fields: [rate]
+    words: []
+    categories: [대출 가능·불가 판단]
+    strength: 직접
+    logic: 금리·대출 규제가 바뀌면 대출 한도와 이자 부담이 바로 달라진다
+    sentence: 금리와 대출 규제가 바뀌는 시기에는 '얼마까지 빌릴 수 있는지'부터 다시 확인해야 합니다. 같은 건물이라도 사업자 조건에 따라 대출 가능 금액이 크게 달라집니다.
+    cta: loan
+
+  - id: stock_down
+    fields: [stock]
+    words: [하락, 급락, 폭락, 약세, 변동성, 조정, 출렁, 불안, 매도세]
+    categories: [건물, 상가, 모텔호텔]
+    strength: 간접
+    logic: 증시가 흔들릴수록 매달 현금이 들어오는 실물자산·수익형 부동산에 관심이 커진다
+    sentence: 주식시장이 출렁일 때마다 '가격이 매일 바뀌지 않고 월세가 들어오는 자산'을 찾는 문의가 늘어납니다. 수익형 건물과 숙박시설이 대표적입니다.
+    cta: listing
+
+  - id: stock_up
+    fields: [stock]
+    words: [상승, 급등, 최고치, 신고가, 강세, 랠리, 돌파, 차익]
+    categories: [건물, 모텔호텔]
+    strength: 간접
+    logic: 증시 상승기에 생긴 차익을 수익형 부동산으로 옮기려는 수요가 생긴다
+    sentence: 주식으로 수익을 본 뒤 일부를 월 수익이 나오는 건물이나 숙박시설로 옮기려는 분들이 있습니다. 갈아타기 전에는 수익률과 대출 조건을 함께 따져봐야 합니다.
+    cta: listing
+
+  - id: reits_construction
+    fields: [stock]
+    words: [리츠, REITs, 건설주, 건설사]
+    categories: [건물, 상가]
+    strength: 간접
+    logic: 리츠·건설주 흐름은 상업용 부동산 시장 분위기를 그대로 보여준다
+    sentence: 리츠와 건설주 흐름은 상업용 부동산 시장의 온도계입니다. 직접 건물을 보유하는 것과 무엇이 다른지 비교해 보겠습니다.
+    cta: listing
+
+  - id: lodging_demand
+    fields: [lodging]
+    words: []
+    categories: [숙박업 정보, 모텔호텔, 펜션]
+    strength: 직접
+    logic: 관광객·숙박 수요 변화는 숙박업 매출과 매매 가격에 바로 반영된다
+    sentence: 관광객과 숙박 수요가 움직이면 모텔·호텔의 객실 가동률과 매매 시세도 따라 움직입니다. 지역별로 체감 차이가 큽니다.
+    cta: listing
+
+  - id: remodel
+    fields: [lodging, etc, commercial]
+    words: [노후, 리모델링, 인테리어, 개보수, 리뉴얼]
+    categories: [리모델링 위탁 운영]
+    strength: 직접
+    logic: 노후 시설은 리모델링 후 위탁 운영으로 수익을 회복할 수 있다
+    sentence: 시설이 낡아 매출이 떨어진 숙박업소는 매각 전에 리모델링과 위탁 운영으로 수익을 먼저 회복하는 방법도 있습니다.
+    cta: remodel
+
+  - id: commercial_vacancy
+    fields: [commercial]
+    words: []
+    categories: [상가, 건물]
+    strength: 직접
+    logic: 상권·공실 변화는 상가와 건물의 임대 수익과 매매가를 좌우한다
+    sentence: 공실률과 상권 흐름은 상가·건물 가격을 결정하는 가장 현실적인 숫자입니다. 매수 전에는 해당 상권의 실제 공실부터 확인해야 합니다.
+    cta: listing
+
+  - id: region_dev
+    fields: [region]
+    words: []
+    categories: [토지, 모텔호텔]
+    strength: 직접
+    logic: 산단·교통망·개발계획은 토지 가치와 주변 숙박 수요(근로자·방문객)를 함께 키운다
+    sentence: 산업단지나 철도 같은 개발 소식이 나오면 토지뿐 아니라 근로자·방문객이 머물 주변 숙박시설 수요도 함께 늘어납니다.
+    cta: listing
+
+  - id: rental_housing
+    fields: [rental]
+    words: []
+    categories: [주택, 빌라 아파트]
+    strength: 직접
+    logic: 전월세·주택 정책은 주택 임대 수익과 매매 판단에 직접 영향을 준다
+    sentence: 전세·월세 제도가 바뀌면 임대인과 임차인 모두 계산이 달라집니다. 내 상황에서 무엇이 바뀌는지 정리해 보겠습니다.
+    cta: listing
+
+  # ── 추가 제안 ──────────────────────────
+  - id: macro_rate  # 추가 제안: 물가·연준 → 금리 전망 → 대출
+    fields: [macro]
+    words: [연준, FOMC, 파월, 물가, 인플레이션, 경기 침체, 경기침체]
+    categories: [대출 가능·불가 판단]
+    strength: 간접
+    logic: 물가·연준 결정은 국내 금리 전망을 바꾸고, 결국 대출 이자로 이어진다
+    sentence: 미국 금리와 물가 소식은 결국 우리 대출 금리로 이어집니다. 지금 대출을 받을지, 기다릴지 판단하는 기준을 정리했습니다.
+    cta: loan
+
+  - id: fx_tourism  # 추가 제안: 환율 → 외국인 관광객 → 숙박
+    fields: [macro]
+    words: [환율, 원달러, 원·달러, 엔화, 원화]
+    categories: [숙박업 정보]
+    strength: 간접
+    logic: 환율이 오르면 외국인 관광객에게 한국 여행이 저렴해져 숙박 수요가 늘 수 있다
+    sentence: 환율은 외국인 관광객 수에도 영향을 줍니다. 원화가 약해지면 방한 관광객이 늘고 숙박 수요도 따라 움직이는 경우가 많습니다.
+    cta: listing
+
+  - id: asset_shift  # 추가 제안: 예금 금리·금값·자금 이동 → 수익형 부동산
+    fields: [asset]
+    words: []
+    categories: [건물, 상가]
+    strength: 간접
+    logic: 예금 금리와 금값 변화는 돈이 예금·금·부동산 중 어디로 움직일지를 보여준다
+    sentence: 예금 금리가 내려가면 '예금보다 나은 월 수익'을 찾는 돈이 수익형 부동산으로 움직이기도 합니다.
+    cta: listing
+
+  - id: policy_tax  # 추가 제안: 세금·규제 → 매도 전략·매물 접수
+    fields: [policy]
+    words: []
+    categories: [건물매매전략 매물 접수, 건물]
+    strength: 직접
+    logic: 세금·규제 변화는 언제 팔고 언제 살지, 매도 시점 판단을 바꾼다
+    sentence: 세금과 규제가 바뀌면 같은 건물이라도 파는 시점에 따라 손에 쥐는 금액이 달라집니다. 매도를 고민 중이라면 시점부터 점검해 보세요.
+    cta: listing
+
+  - id: auction  # 추가 제안: 경매·공매 → 모텔호텔·건물
+    fields: [auction]
+    words: []
+    categories: [모텔호텔, 건물]
+    strength: 간접
+    logic: 경매 물건과 낙찰가율은 일반 매매 시세의 바닥을 보여준다
+    sentence: 경매 낙찰가율은 일반 매매 시장의 체감 시세를 가늠하는 지표입니다. 경매와 일반 매매 중 어느 쪽이 나은지 비교해 보겠습니다.
+    cta: listing
+
+  - id: pension  # 추가 제안
+    fields: [etc]
+    words: [펜션]
+    categories: [펜션, 숙박업 정보]
+    strength: 직접
+    logic: 펜션 시장 소식은 펜션 매매·운영 판단과 바로 이어진다
+    sentence: 펜션은 계절과 지역에 따라 수익 차이가 큰 숙박업입니다. 매매 전 확인할 점을 정리했습니다.
+    cta: listing
+
+  - id: golf  # 추가 제안
+    fields: [etc]
+    words: [골프장, 골프]
+    categories: [골프]
+    strength: 간접
+    logic: 골프장 수요는 주변 숙박·토지 수요와 연결된다
+    sentence: 골프장 주변은 숙박과 토지 수요가 함께 움직이는 지역입니다.
+    cta: listing
+
+# 마무리 상담 안내 문구 — {중괄호}는 office.yaml 정보로 자동 채워집니다
+cta_templates:
+  loan: |-
+    지금 내 조건으로 대출이 가능한지, 얼마까지 가능한지 궁금하시면 편하게 문의 주세요. 매물과 사업자 상황을 함께 보고 대출 가능·불가부터 먼저 판단해 드립니다.
+  listing: |-
+    모텔·호텔·건물·상가 매수나 매도를 고민 중이시면 문의 주세요. 매도하실 물건은 매물 접수를, 매수하실 분은 원하시는 지역과 가격대를 알려주시면 맞는 물건을 찾아 드립니다.
+  remodel: |-
+    시설이 낡아 매출이 줄었거나 직접 운영이 어려우시면 리모델링과 위탁 운영 상담을 받아 보세요. 숙박업 운영 20년 경험으로 리모델링팀 '짓고'가 함께 진단해 드립니다.
+
+# 상담 안내 밑에 붙는 사무소 정보 줄 (비어 있는 항목은 자동으로 빠짐)
+office_footer: |-
+  {name} | 대표 {representative}
+  중개사무소 등록번호 {registration_no}
+  전화 {phone} / 휴대폰 {mobile}
+  카카오톡 {kakao}
+  {address}

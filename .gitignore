@@ -1,0 +1,20 @@
+# 비밀 키 — 절대 업로드 금지
+.env
+.env.*
+!.env.example
+
+# 파이썬
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 로컬 수집 결과 (실제 데이터는 GitHub의 data 브랜치에만 저장)
+data/*.json
+!data/sample_*.json
+
+# 기타
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

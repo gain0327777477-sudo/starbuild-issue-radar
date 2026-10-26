@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────
+# 점수와 추천 설정 — 숫자를 바꾸면 순위가 바뀝니다 (대표님이 수정 가능)
+# 화면의 이슈 카드에서 '점수 근거'를 누르면 아래 항목별로 몇 점을 받았는지 보입니다.
+# ─────────────────────────────────────────────
+
+# ① 집객 점수 — 사람들이 지금 찾는가
+attract:
+  per_related_article: 1.0     # 같은 사건 관련 기사 1건당 (화제성)
+  related_article_max: 10      # 화제성 점수 상한
+  freshness:                   # 가장 최근 기사 기준 최신성
+    - { within_hours: 3,  points: 5 }
+    - { within_hours: 12, points: 3 }
+    - { within_hours: 24, points: 1 }
+  trend_rising: 4              # 데이터랩 검색 추이가 오르는 중이면 가산
+  public_interest_fields: [stock, macro, asset, rate]   # 대중 관심 분야
+  public_interest_bonus: 3
+  briefing_bonus: 1            # 정부 보도자료가 같이 묶여 있으면(정책 신뢰도)
+  ad_penalty_strong: -10
+  ad_penalty_soft: -3
+  stars:                       # 집객 ★ 기준 (이 점수 이상)
+    three: 15
+    two: 8
+
+# ② 사업 연결 점수 — 내 블로그 카테고리로 이어지는가
+business:
+  직접: 10
+  간접: 6
+  약함: 0
+  weak_rank_penalty: -8        # '연결 약함'은 추천 순위에서 내림
+
+# 같은 사건 묶기 — 제목이 얼마나 비슷하면 같은 이슈로 볼지 (0~1, 높을수록 엄격)
+cluster_similarity: 0.45
+
+# 오늘 쓸 글 추천 — 매일 3개 (분야는 keywords.yaml 의 영문 이름)
+#  fields 에서 먼저 고르고, 후보가 없으면 backup_fields 에서 고릅니다.
+recommend:
+  slots:
+    - name: 집객형 (주식·경제)
+      fields: [stock, macro, asset]
+    - name: 사업형 (금리·대출·숙박)
+      fields: [rate, lodging]
+      backup_fields: [commercial, policy, rental, etc]
+    - name: 지역·개발형
+      fields: [region]
+      backup_fields: [auction, policy]
+  exclude_written_days: 7      # 최근 7일 안에 블로그에 쓴 주제와 겹치면 제외
+
+# 데이터 보관 기간
+retention_days: 7
