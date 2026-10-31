@@ -1,0 +1,109 @@
+{
+ "collected_at": "2026-10-31T22:17:31+09:00",
+ "run": {
+  "event": "schedule",
+  "run_id": "41204871121",
+  "started_at": "2026-10-31T22:17:31+09:00",
+  "finished_at": "2026-10-31T22:22:50+09:00",
+  "scheduled_slot": "2026-10-31T22:00:00+09:00",
+  "start_delay_min": 17.5
+ },
+ "schedule": {
+  "kst_hours": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   16,
+   18,
+   20,
+   22
+  ],
+  "quiet_hours": {
+   "start": 22,
+   "end": 7
+  },
+  "stale_hours": 3,
+  "next_run": "2026-11-01T06:00:00+09:00"
+ },
+ "has_naver_keys": true,
+ "new_articles": 20393,
+ "total_articles": 64969,
+ "article_files_mb": 42.6,
+ "processing": {
+  "articles_in": 64969,
+  "excluded": {
+   "해외 매체": 375,
+   "기사 아닌 페이지": 216,
+   "해외 기사": 15,
+   "해외 지명·지수": 459,
+   "해외 개발·사업 소식": 1285
+  },
+  "excluded_examples": {
+   "해외 매체": "Laodong.vn: 10월 25일 마감 시세 금값: 1개월 만에 급락, 매수자 840만 동/",
+   "기사 아닌 페이지": "부산시: 수의계약현황",
+   "해외 기사": "대한민국 정책브리핑: 3",
+   "해외 지명·지수": "미디어펜: 롯데, 베트남 시장 영토 확장 속도… '미래 성장동력' 삼각 편대 가동",
+   "해외 개발·사업 소식": "아주경제: [한준호의 모시모시] 일본 철강은 왜 인도로 향하는가"
+  },
+  "articles_used": 63904,
+  "issue_groups": 47513,
+  "issues_out": 519,
+  "seconds": 113.3,
+  "packet_warnings": 1
+ },
+ "sources": [
+  {
+   "id": "naver_news",
+   "name": "네이버 뉴스",
+   "status": "ok",
+   "count": 17200,
+   "calls": 172,
+   "message": "직전 수집 7시간 전(밤사이·실행 누락) — 빈 시간 기사까지 키워드당 100건",
+   "seconds": 107.0,
+   "last_success": "2026-10-31T22:17:31+09:00"
+  },
+  {
+   "id": "korea_briefing",
+   "name": "정책브리핑",
+   "status": "ok",
+   "count": 900,
+   "calls": 9,
+   "message": "",
+   "seconds": 17.6,
+   "last_success": "2026-10-31T22:17:31+09:00"
+  },
+  {
+   "id": "google_news",
+   "name": "구글 뉴스",
+   "status": "ok",
+   "count": 2293,
+   "calls": 41,
+   "message": "",
+   "seconds": 75.8,
+   "last_success": "2026-10-31T22:17:31+09:00"
+  },
+  {
+   "id": "blog_rss",
+   "name": "내 블로그",
+   "status": "ok",
+   "count": 50,
+   "calls": 1,
+   "message": "",
+   "seconds": 1.2,
+   "last_success": "2026-10-31T22:17:31+09:00"
+  },
+  {
+   "id": "datalab",
+   "name": "검색 추이(데이터랩)",
+   "status": "ok",
+   "count": 2385,
+   "calls": 4,
+   "message": "정기 조회 4회 (오늘 12회)",
+   "seconds": 0,
+   "last_success": "2026-10-31T22:17:31+09:00"
+  }
+ ],
+ "failed_sources": []
+}
