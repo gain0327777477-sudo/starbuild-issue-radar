@@ -1,0 +1,109 @@
+{
+ "collected_at": "2026-11-07T22:43:54+09:00",
+ "run": {
+  "event": "schedule",
+  "run_id": "42378273280",
+  "started_at": "2026-11-07T22:43:54+09:00",
+  "finished_at": "2026-11-07T22:49:34+09:00",
+  "scheduled_slot": "2026-11-07T22:00:00+09:00",
+  "start_delay_min": 43.9
+ },
+ "schedule": {
+  "kst_hours": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   16,
+   18,
+   20,
+   22
+  ],
+  "quiet_hours": {
+   "start": 22,
+   "end": 7
+  },
+  "stale_hours": 3,
+  "next_run": "2026-11-08T06:00:00+09:00"
+ },
+ "has_naver_keys": true,
+ "new_articles": 20182,
+ "total_articles": 68375,
+ "article_files_mb": 44.8,
+ "processing": {
+  "articles_in": 68375,
+  "excluded": {
+   "해외 매체": 391,
+   "기사 아닌 페이지": 184,
+   "해외 기사": 28,
+   "해외 지명·지수": 504,
+   "해외 개발·사업 소식": 1711
+  },
+  "excluded_examples": {
+   "해외 매체": "Vietnam.vn: Hue는 관광객을 위한 여행 일정을 만들 수 있는 AI 기반 여행 가이드",
+   "기사 아닌 페이지": "라디오코리아: 아마존, CA주서 3만 4천 명 대규모 채용…LA만 2,900명",
+   "해외 기사": "TIKR.com: AbbVie Stock Hits a Record After a 5.2% ",
+   "해외 지명·지수": "서울신문: 중국인들 화장실 사용 후… “바닥엔 소변·변기 물도 안 내려” 태국인..",
+   "해외 개발·사업 소식": "뉴시스: 캐나다·EU '미래동맹' 출범…캐나다, 유럽 슈퍼컴퓨터망 합류"
+  },
+  "articles_used": 67268,
+  "issue_groups": 51436,
+  "issues_out": 500,
+  "seconds": 130.7,
+  "packet_warnings": 0
+ },
+ "sources": [
+  {
+   "id": "naver_news",
+   "name": "네이버 뉴스",
+   "status": "ok",
+   "count": 17200,
+   "calls": 172,
+   "message": "직전 수집 7시간 전(밤사이·실행 누락) — 빈 시간 기사까지 키워드당 100건",
+   "seconds": 111.5,
+   "last_success": "2026-11-07T22:43:54+09:00"
+  },
+  {
+   "id": "korea_briefing",
+   "name": "정책브리핑",
+   "status": "ok",
+   "count": 898,
+   "calls": 9,
+   "message": "",
+   "seconds": 17.5,
+   "last_success": "2026-11-07T22:43:54+09:00"
+  },
+  {
+   "id": "google_news",
+   "name": "구글 뉴스",
+   "status": "ok",
+   "count": 2084,
+   "calls": 41,
+   "message": "",
+   "seconds": 76.0,
+   "last_success": "2026-11-07T22:43:54+09:00"
+  },
+  {
+   "id": "blog_rss",
+   "name": "내 블로그",
+   "status": "ok",
+   "count": 50,
+   "calls": 1,
+   "message": "",
+   "seconds": 1.3,
+   "last_success": "2026-11-07T22:43:54+09:00"
+  },
+  {
+   "id": "datalab",
+   "name": "검색 추이(데이터랩)",
+   "status": "ok",
+   "count": 1793,
+   "calls": 4,
+   "message": "정기 조회 4회 (오늘 16회)",
+   "seconds": 0,
+   "last_success": "2026-11-07T22:43:54+09:00"
+  }
+ ],
+ "failed_sources": []
+}
