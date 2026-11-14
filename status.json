@@ -1,0 +1,109 @@
+{
+ "collected_at": "2026-11-15T01:50:34+09:00",
+ "run": {
+  "event": "schedule",
+  "run_id": "43617784455",
+  "started_at": "2026-11-15T01:50:34+09:00",
+  "finished_at": "2026-11-15T01:56:35+09:00",
+  "scheduled_slot": "2026-11-14T22:00:00+09:00",
+  "start_delay_min": 230.6
+ },
+ "schedule": {
+  "kst_hours": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   16,
+   18,
+   20,
+   22
+  ],
+  "quiet_hours": {
+   "start": 22,
+   "end": 7
+  },
+  "stale_hours": 3,
+  "next_run": "2026-11-15T06:00:00+09:00"
+ },
+ "has_naver_keys": true,
+ "new_articles": 20376,
+ "total_articles": 69908,
+ "article_files_mb": 45.9,
+ "processing": {
+  "articles_in": 69908,
+  "excluded": {
+   "해외 매체": 261,
+   "해외 지명·지수": 321,
+   "기사 아닌 페이지": 206,
+   "해외 기사": 20,
+   "해외 개발·사업 소식": 1463
+  },
+  "excluded_examples": {
+   "해외 매체": "Vietnam.vn: 부산은 2026년까지 해외 관광객 400만 명을 유치하는 것을 목표로 하",
+   "해외 지명·지수": "pckworld.com: 필리핀 지역과 세상 곳곳에 예수님 사랑 흘러가기를",
+   "기사 아닌 페이지": "충청남도: 포토갤러리 > 의회소식",
+   "해외 기사": "대한민국 정책브리핑: 'Team Korea'",
+   "해외 개발·사업 소식": "토큰포스트: 바이낸스 해킹 뒤 영국 투자자들, 자산 분산·매도 검토"
+  },
+  "articles_used": 69100,
+  "issue_groups": 52433,
+  "issues_out": 543,
+  "seconds": 124.6,
+  "packet_warnings": 0
+ },
+ "sources": [
+  {
+   "id": "naver_news",
+   "name": "네이버 뉴스",
+   "status": "ok",
+   "count": 17200,
+   "calls": 172,
+   "message": "직전 수집 7시간 전(밤사이·실행 누락) — 빈 시간 기사까지 키워드당 100건",
+   "seconds": 138.6,
+   "last_success": "2026-11-15T01:50:34+09:00"
+  },
+  {
+   "id": "korea_briefing",
+   "name": "정책브리핑",
+   "status": "ok",
+   "count": 900,
+   "calls": 9,
+   "message": "",
+   "seconds": 17.1,
+   "last_success": "2026-11-15T01:50:34+09:00"
+  },
+  {
+   "id": "google_news",
+   "name": "구글 뉴스",
+   "status": "ok",
+   "count": 2276,
+   "calls": 41,
+   "message": "",
+   "seconds": 75.8,
+   "last_success": "2026-11-15T01:50:34+09:00"
+  },
+  {
+   "id": "blog_rss",
+   "name": "내 블로그",
+   "status": "ok",
+   "count": 50,
+   "calls": 1,
+   "message": "",
+   "seconds": 1.7,
+   "last_success": "2026-11-15T01:50:34+09:00"
+  },
+  {
+   "id": "datalab",
+   "name": "검색 추이(데이터랩)",
+   "status": "ok",
+   "count": 3059,
+   "calls": 4,
+   "message": "정기 조회 4회 (오늘 4회)",
+   "seconds": 0,
+   "last_success": "2026-11-15T01:50:34+09:00"
+  }
+ ],
+ "failed_sources": []
+}
