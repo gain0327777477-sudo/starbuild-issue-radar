@@ -1,0 +1,109 @@
+{
+ "collected_at": "2026-11-21T19:37:43+09:00",
+ "run": {
+  "event": "schedule",
+  "run_id": "44895222799",
+  "started_at": "2026-11-21T19:37:43+09:00",
+  "finished_at": "2026-11-21T19:42:48+09:00",
+  "scheduled_slot": "2026-11-21T18:00:00+09:00",
+  "start_delay_min": 97.7
+ },
+ "schedule": {
+  "kst_hours": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   16,
+   18,
+   20,
+   22
+  ],
+  "quiet_hours": {
+   "start": 22,
+   "end": 7
+  },
+  "stale_hours": 3,
+  "next_run": "2026-11-21T20:00:00+09:00"
+ },
+ "has_naver_keys": true,
+ "new_articles": 20342,
+ "total_articles": 66939,
+ "article_files_mb": 43.9,
+ "processing": {
+  "articles_in": 66939,
+  "excluded": {
+   "기사 아닌 페이지": 236,
+   "해외 매체": 297,
+   "해외 지명·지수": 477,
+   "해외 기사": 20,
+   "해외 개발·사업 소식": 1473
+  },
+  "excluded_examples": {
+   "기사 아닌 페이지": "인천시: 인천시장 박찬대>말과글 > [26.11.13] 2028 G20정상회의 인",
+   "해외 매체": "Vietnam.vn: 탄화성은 응이선-바이쩐 도로의 붕괴된 다리를 긴급히 재건하고 있습니다.",
+   "해외 지명·지수": "위키트리: 태국 SEC, 스테이블코인 입출금 하루 500만 바트 한도 초안…26일까",
+   "해외 기사": "legaltimes.co.kr: [2026 Best Law Firms in Korea] White & C",
+   "해외 개발·사업 소식": "매일신문: \"스시자로·마라자로\"…비만약 원정처방, 이제 일본 넘어 중국까지"
+  },
+  "articles_used": 65909,
+  "issue_groups": 50163,
+  "issues_out": 521,
+  "seconds": 96.8,
+  "packet_warnings": 0
+ },
+ "sources": [
+  {
+   "id": "naver_news",
+   "name": "네이버 뉴스",
+   "status": "ok",
+   "count": 17200,
+   "calls": 172,
+   "message": "직전 수집 9시간 전(밤사이·실행 누락) — 빈 시간 기사까지 키워드당 100건",
+   "seconds": 110.4,
+   "last_success": "2026-11-21T19:37:43+09:00"
+  },
+  {
+   "id": "korea_briefing",
+   "name": "정책브리핑",
+   "status": "ok",
+   "count": 900,
+   "calls": 9,
+   "message": "",
+   "seconds": 17.8,
+   "last_success": "2026-11-21T19:37:43+09:00"
+  },
+  {
+   "id": "google_news",
+   "name": "구글 뉴스",
+   "status": "ok",
+   "count": 2242,
+   "calls": 41,
+   "message": "",
+   "seconds": 75.9,
+   "last_success": "2026-11-21T19:37:43+09:00"
+  },
+  {
+   "id": "blog_rss",
+   "name": "내 블로그",
+   "status": "ok",
+   "count": 50,
+   "calls": 1,
+   "message": "",
+   "seconds": 1.4,
+   "last_success": "2026-11-21T19:37:43+09:00"
+  },
+  {
+   "id": "datalab",
+   "name": "검색 추이(데이터랩)",
+   "status": "ok",
+   "count": 6060,
+   "calls": 4,
+   "message": "정기 조회 4회 (오늘 12회)",
+   "seconds": 0,
+   "last_success": "2026-11-21T19:37:43+09:00"
+  }
+ ],
+ "failed_sources": []
+}
