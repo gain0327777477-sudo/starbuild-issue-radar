@@ -1,0 +1,109 @@
+{
+ "collected_at": "2026-11-28T22:51:41+09:00",
+ "run": {
+  "event": "schedule",
+  "run_id": "46151687424",
+  "started_at": "2026-11-28T22:51:41+09:00",
+  "finished_at": "2026-11-28T22:56:59+09:00",
+  "scheduled_slot": "2026-11-28T22:00:00+09:00",
+  "start_delay_min": 51.7
+ },
+ "schedule": {
+  "kst_hours": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   16,
+   18,
+   20,
+   22
+  ],
+  "quiet_hours": {
+   "start": 22,
+   "end": 7
+  },
+  "stale_hours": 3,
+  "next_run": "2026-11-29T06:00:00+09:00"
+ },
+ "has_naver_keys": true,
+ "new_articles": 20514,
+ "total_articles": 66049,
+ "article_files_mb": 43.4,
+ "processing": {
+  "articles_in": 66049,
+  "excluded": {
+   "해외 매체": 318,
+   "해외 지명·지수": 473,
+   "해외 기사": 22,
+   "기사 아닌 페이지": 223,
+   "해외 개발·사업 소식": 1402
+  },
+  "excluded_examples": {
+   "해외 매체": "Vietnam.vn: 벤투이 및 벤투이 2 유료 도로의 통행료 징수가 11월 25일부터 재개됩",
+   "해외 지명·지수": "KBS: EU, 인도네시아 무역협정 체결…관세 90％ 이상 철폐",
+   "해외 기사": "Vietnam.vn: Hai trạm BOT Bến Thủy hoạt động thu phí ",
+   "기사 아닌 페이지": "인천시: 버스정보시스템",
+   "해외 개발·사업 소식": "allure Korea: 하트 치약 말고 뭐 사지? 호주 멜버른 쇼핑 핫플은 여기"
+  },
+  "articles_used": 65013,
+  "issue_groups": 49122,
+  "issues_out": 545,
+  "seconds": 105.6,
+  "packet_warnings": 0
+ },
+ "sources": [
+  {
+   "id": "naver_news",
+   "name": "네이버 뉴스",
+   "status": "ok",
+   "count": 17200,
+   "calls": 172,
+   "message": "직전 수집 11시간 전(밤사이·실행 누락) — 빈 시간 기사까지 키워드당 100건",
+   "seconds": 115.8,
+   "last_success": "2026-11-28T22:51:41+09:00"
+  },
+  {
+   "id": "korea_briefing",
+   "name": "정책브리핑",
+   "status": "ok",
+   "count": 900,
+   "calls": 9,
+   "message": "",
+   "seconds": 17.0,
+   "last_success": "2026-11-28T22:51:41+09:00"
+  },
+  {
+   "id": "google_news",
+   "name": "구글 뉴스",
+   "status": "ok",
+   "count": 2414,
+   "calls": 41,
+   "message": "",
+   "seconds": 75.1,
+   "last_success": "2026-11-28T22:51:41+09:00"
+  },
+  {
+   "id": "blog_rss",
+   "name": "내 블로그",
+   "status": "ok",
+   "count": 50,
+   "calls": 1,
+   "message": "",
+   "seconds": 1.4,
+   "last_success": "2026-11-28T22:51:41+09:00"
+  },
+  {
+   "id": "datalab",
+   "name": "검색 추이(데이터랩)",
+   "status": "ok",
+   "count": 1813,
+   "calls": 4,
+   "message": "정기 조회 4회 (오늘 8회)",
+   "seconds": 0,
+   "last_success": "2026-11-28T22:51:41+09:00"
+  }
+ ],
+ "failed_sources": []
+}
